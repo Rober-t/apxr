@@ -119,7 +119,7 @@ defmodule APXR.Market do
   defp call_to_action(traders, i, _iterations_left) do
     if rem(i, 500) == 0, do: ProgressBar.print(i, @iterations)
 
-    maybe_populate_orderbook(traders)
+    maybe_populate_orderbook()
 
     for {type, id} <- traders do
       case type do
@@ -144,7 +144,7 @@ defmodule APXR.Market do
     end
   end
 
-  defp maybe_populate_orderbook(traders) do
+  defp maybe_populate_orderbook() do
     if Exchange.highest_bid_prices(:apxr, :apxr) == [] or
          Exchange.lowest_ask_prices(:apxr, :apxr) == [] do
       NoiseTrader.actuate({NoiseTrader, 1})

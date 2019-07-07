@@ -75,23 +75,22 @@ Separating the runtime for each of these processes provides us with isolation gu
 
 **Summary of messages used in the main interactions**
 
-| Input to venue  | Description                           | Received from   |
-|---------------- |-------------------------------------  |---------------  |
-| New Order       | A new order is received               | Trader          |
-| Cancel Order    | An order cancel request is received   | Trader          |
+| Input to venue          | Description                                                          | Received from             |
+|------------------------ |--------------------------------------------------------------------- |-------------------------- |
+| New Order               | A new order is received                                              | Trader                    |
+| Cancel Order            | An order cancel request is received                                  | Trader                    |
 
+| Output from venue       | Description                                                          | Sent to                   |
+|------------------------ |--------------------------------------------------------------------- |-------------------------  |
+| Order Execution Report  | An execution report is sent after an order is completed or canceled  | Trader                    |
+| Orderbook Event         | A report is sent after when certain orderbook events occur           | Reporting Service         |
+| Market Data             | Level 1 and Level 2 market data                                      | Trader                    |
 
-| Output from venue       | Description                                               | Sent to                   |
-|------------------------ |---------------------------------------------------------  |-------------------------  |
-| Order Execution Report  | An execution report is sent after an order is completed   | Trader                    |
-| Order Canceled Ack      | An acknowledgment is sent when an order is canceled       | Trader                    |
-| Execution Report        | A execution report is sent after an order is completed    | Trade Reporting Service   |
-| Market Data             | Level 1 and Level 2 market data                           | Trader                    |
-
-
-| Input to trader         | Description                                                           | Received from             |
-|------------------------ |---------------------------------------------------------------------  |-------------------------  |
-| Order Execution Report  | An execution report is received after an order is completed           | Trading Venue             |
+| Input to trader         | Description                                                          | Received from             |
+|------------------------ |--------------------------------------------------------------------- |-------------------------  |
+| Order Execution Report  | An execution report is received after an order is completed          | Trading Venue             |
+| Orderbook Event         | If subscribed, a report is sent after when certain events occur      | Reporting Service         |
+| Market Data             | Level 1 and Level 2 market data                                      | Trading Venue             |
 
 --------------------
 ### Configuration
