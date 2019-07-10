@@ -16,15 +16,12 @@ defmodule APXR.MarketMaker do
 
   alias APXR.{
     Exchange,
-    Market,
     Order,
     OrderbookEvent,
     Trader
   }
 
-  alias Decimal, as: D
-
-  @mm_delta D.new("0.1")
+  @mm_delta 0.1
   @mm_w 50
   @mm_max_vol 200_000
   @mm_vol 1
@@ -46,7 +43,7 @@ defmodule APXR.MarketMaker do
   """
   @impl Trader
   def actuate(id) do
-    GenServer.cast(via_tuple(id), {:actuate})
+    GenServer.call(via_tuple(id), {:actuate}, 30000)
   end
 
   @doc """
@@ -71,10 +68,9 @@ defmodule APXR.MarketMaker do
   end
 
   @impl true
-  def handle_cast({:actuate}, state) do
+  def handle_call({:actuate}, _from, state) do
     trader = market_maker(state)
-    Market.ack(trader.trader_id)
-    {:noreply, %{state | trader: trader}}
+    {:reply, :ok, %{state | trader: trader}}
   end
 
   @impl true
@@ -98,11 +94,6 @@ defmodule APXR.MarketMaker do
   @impl true
   def handle_info(_msg, state) do
     {:noreply, state}
-  end
-
-  @impl true
-  def terminate(_reason, %{trader: trader}) do
-    Market.ack(trader.trader_id)
   end
 
   ## Private
@@ -162,13 +153,13 @@ defmodule APXR.MarketMaker do
 
     prediction = simple_moving_avg(order_side_history)
 
-    if D.lt?(rand(), @mm_delta) do
+    if rand() < @mm_delta do
       for order <- outstanding_orders, do: Exchange.cancel_order(venue, ticker, order)
 
       {cost, orders} =
         market_maker_place_order(venue, ticker, tid, ask_price, bid_price, prediction)
 
-      cash = cash |> D.sub(cost) |> D.max("0")
+      cash = max(cash - cost, 0.0) |> Float.round(2)
       %{trader | cash: cash, outstanding_orders: orders}
     else
       trader
@@ -176,7 +167,7 @@ defmodule APXR.MarketMaker do
   end
 
   defp market_maker_place_order(venue, ticker, tid, ask_price, bid_price, prediction) do
-    if D.lt?(prediction, "0.5") do
+    if prediction < 0.5 do
       market_maker_place_order(venue, ticker, tid, ask_price, bid_price, prediction, :lt)
     else
       market_maker_place_order(venue, ticker, tid, ask_price, bid_price, prediction, :gt)
@@ -190,7 +181,7 @@ defmodule APXR.MarketMaker do
     order2 = Exchange.buy_limit_order(venue, ticker, tid, bid_price, @mm_vol)
 
     orders = Enum.reject([order1, order2], fn order -> order == :rejected end)
-    cost = D.add(D.mult(ask_price, vol), D.mult(bid_price, @mm_vol))
+    cost = ask_price * vol + bid_price * @mm_vol
 
     {cost, orders}
   end
@@ -202,14 +193,14 @@ defmodule APXR.MarketMaker do
     order2 = Exchange.sell_limit_order(venue, ticker, tid, ask_price, @mm_vol)
 
     orders = Enum.reject([order1, order2], fn order -> order == :rejected end)
-    cost = D.add(D.mult(ask_price, @mm_vol), D.mult(bid_price, vol))
+    cost = ask_price * @mm_vol + bid_price * vol
 
     {cost, orders}
   end
 
   defp simple_moving_avg(items) when is_list(items) do
-    Enum.reduce(items, 0, fn x, acc -> D.add(x, acc) end)
-    |> D.div(length(items))
+    sum = Enum.reduce(items, 0, fn x, acc -> x + acc end)
+    sum / length(items)
   end
 
   defp update_order_side_history(
@@ -230,12 +221,12 @@ defmodule APXR.MarketMaker do
     %Trader{
       trader_id: {__MODULE__, id},
       type: :market_maker,
-      cash: D.new("20000000"),
+      cash: 20_000_000.0,
       outstanding_orders: []
     }
   end
 
   defp rand() do
-    D.from_float(:rand.uniform())
+    :rand.uniform()
   end
 end

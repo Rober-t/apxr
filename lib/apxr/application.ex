@@ -12,9 +12,9 @@ defmodule APXR.Application do
   # How many of each type of trader to initialize
   @liquidity_consumers 10
   @market_makers 10
-  @mean_reversion_traders 15
-  @momentum_traders 15
-  @noise_traders 50
+  @mean_reversion_traders 40
+  @momentum_traders 40
+  @noise_traders 75
   @my_traders 1
 
   def start(_type, _args) do

@@ -18,11 +18,7 @@ defmodule APXR.Market do
     ReportingService
   }
 
-  if Application.get_env(:apxr, :environment) == :test do
-    @iterations 100
-  else
-    @iterations 300_000
-  end
+  @iterations 300_000
 
   ## Client API
 
@@ -38,13 +34,6 @@ defmodule APXR.Market do
   """
   def open do
     GenServer.cast(__MODULE__, {:open})
-  end
-
-  @doc """
-  Handles ack messages from a Trader process.
-  """
-  def ack(trader_id) do
-    GenServer.cast(__MODULE__, {:ack, trader_id})
   end
 
   ## Server callbacks
@@ -65,23 +54,13 @@ defmodule APXR.Market do
     # :rand.seed(:exsplus, {1, 2, 3})
     :ets.new(:run_index, [:public, :named_table])
     traders = init_traders(lcs, mms, mrts, mmts, nts, myts)
-    {:ok, %{traders: traders, ackd_traders: [], run_index: 0, iterations_left: @iterations}}
+    {:ok, %{traders: traders}}
   end
 
   @impl true
-  def handle_call(_msg, _from, state) do
-    {:reply, :ok, state}
-  end
-
-  @impl true
+  @spec handle_cast(any(), any()) :: no_return()
   def handle_cast({:open}, state) do
     open(state)
-    {:noreply, state}
-  end
-
-  @impl true
-  def handle_cast({:ack, trader_id}, state) do
-    state = do_process_ack(trader_id, state)
     {:noreply, state}
   end
 
@@ -116,8 +95,8 @@ defmodule APXR.Market do
     System.stop(0)
   end
 
-  defp call_to_action(traders, i, _iterations_left) do
-    if rem(i, 500) == 0, do: ProgressBar.print(i, @iterations)
+  defp call_to_action(traders, i, iterations_left) do
+    if rem(i, 100) == 0, do: ProgressBar.print(i, @iterations)
 
     maybe_populate_orderbook()
 
@@ -142,39 +121,16 @@ defmodule APXR.Market do
           MyTrader.actuate({type, id})
       end
     end
+
+    Exchange.mid_price(:apxr, :apxr) |> ReportingService.push_mid_price(i + 1)
+    :ets.update_counter(:run_index, :iteration, 1)
+    Enum.shuffle(traders) |> call_to_action(i + 1, iterations_left - 1)
   end
 
   defp maybe_populate_orderbook() do
     if Exchange.highest_bid_prices(:apxr, :apxr) == [] or
          Exchange.lowest_ask_prices(:apxr, :apxr) == [] do
       NoiseTrader.actuate({NoiseTrader, 1})
-    end
-  end
-
-  defp do_process_ack(trader_id, %{
-         traders: traders,
-         ackd_traders: ackd_traders,
-         run_index: i,
-         iterations_left: iterations
-       }) do
-    traders = Enum.reject(traders, fn tid -> tid == trader_id end)
-    ackd_traders = [trader_id | ackd_traders]
-
-    if traders == [] do
-      Exchange.mid_price(:apxr, :apxr) |> ReportingService.push_mid_price(i + 1)
-
-      :ets.update_counter(:run_index, :iteration, 1)
-
-      Enum.shuffle(ackd_traders) |> call_to_action(i + 1, iterations - 1)
-
-      %{
-        traders: ackd_traders,
-        ackd_traders: traders,
-        run_index: i + 1,
-        iterations_left: iterations - 1
-      }
-    else
-      %{traders: traders, ackd_traders: ackd_traders, run_index: i, iterations_left: iterations}
     end
   end
 

@@ -14,15 +14,12 @@ defmodule APXR.MomentumTrader do
 
   alias APXR.{
     Exchange,
-    Market,
     Trader
   }
 
-  alias Decimal, as: D
-
-  @mt_delta D.new("0.4")
-  @mt_n D.new("5")
-  @mt_k D.new("0.001")
+  @mt_delta 0.4
+  @mt_n 5
+  @mt_k 0.001
 
   ## Client API
 
@@ -41,7 +38,7 @@ defmodule APXR.MomentumTrader do
   """
   @impl Trader
   def actuate(id) do
-    GenServer.cast(via_tuple(id), {:actuate})
+    GenServer.call(via_tuple(id), {:actuate}, 30000)
   end
 
   @doc """
@@ -64,10 +61,9 @@ defmodule APXR.MomentumTrader do
   end
 
   @impl true
-  def handle_cast({:actuate}, state) do
+  def handle_call({:actuate}, _from, state) do
     trader = momentum_trader(state)
-    Market.ack(trader.trader_id)
-    {:noreply, %{state | trader: trader}}
+    {:reply, :ok, %{state | trader: trader}}
   end
 
   @impl true
@@ -79,11 +75,6 @@ defmodule APXR.MomentumTrader do
   @impl true
   def handle_info(_msg, state) do
     {:noreply, state}
-  end
-
-  @impl true
-  def terminate(_reason, %{trader: trader}) do
-    Market.ack(trader.trader_id)
   end
 
   ## Private
@@ -113,11 +104,11 @@ defmodule APXR.MomentumTrader do
 
   defp momentum_trader(venue, ticker, tid, p, p1, cash, counter, trader) do
     roc = rate_of_change(p, p1)
-    vol = D.abs(roc) |> D.mult(cash) |> D.round(0, :half_up) |> D.to_integer()
+    vol = round(abs(roc) * cash)
 
-    if D.lt?(rand(), @mt_delta) do
+    if rand() < @mt_delta do
       cost = momentum_trader_place_order(venue, ticker, tid, vol, roc)
-      cash = cash |> D.sub(cost) |> D.max("0")
+      cash = max(cash - cost, 0.0) |> Float.round(2)
 
       %{trader | cash: cash}
       |> momentum_trader_update_lag_price(counter, p, p1)
@@ -128,52 +119,51 @@ defmodule APXR.MomentumTrader do
 
   defp momentum_trader_place_order(venue, ticker, tid, vol, roc) do
     cond do
-      D.gt?(roc, @mt_k) or D.eq?(roc, @mt_k) ->
+      roc >= @mt_k ->
         momentum_trader_place_order(venue, ticker, tid, vol, roc, :gt)
 
-      D.lt?(roc, D.minus(@mt_k)) or D.eq?(roc, D.minus(@mt_k)) ->
+      roc <= @mt_k * -1 ->
         momentum_trader_place_order(venue, ticker, tid, vol, roc, :lt)
 
       true ->
-        D.new("0")
+        0.0
     end
   end
 
   defp momentum_trader_place_order(venue, ticker, tid, vol, _roc, :gt) do
-    cost = Exchange.ask_price(venue, ticker) |> D.mult(vol)
+    cost = Exchange.ask_price(venue, ticker) * vol
     Exchange.buy_market_order(venue, ticker, tid, vol)
     cost
   end
 
   defp momentum_trader_place_order(venue, ticker, tid, vol, _roc, :lt) do
-    cost = Exchange.bid_price(venue, ticker) |> D.mult(vol)
+    cost = Exchange.bid_price(venue, ticker) * vol
     Exchange.sell_market_order(venue, ticker, tid, vol)
     cost
   end
 
   defp momentum_trader_update_lag_price(trader, counter, p, p1) do
-    if D.gt?(counter, @mt_n) do
-      %{trader | lag_price: {p, D.new("0")}}
+    if counter > @mt_n do
+      %{trader | lag_price: {p, 0}}
     else
-      %{trader | lag_price: {p1, D.add(counter, 1)}}
+      %{trader | lag_price: {p1, counter + 1}}
     end
   end
 
   defp rate_of_change(p, p1) do
-    numer = D.sub(p, p1)
-    D.div(numer, p1)
+    (p - p1) / p1
   end
 
   defp init_trader(id) do
     %Trader{
       trader_id: {__MODULE__, id},
       type: :momentum_trader,
-      cash: D.new("20000000"),
+      cash: 20_000_000.0,
       outstanding_orders: []
     }
   end
 
   defp rand() do
-    D.from_float(:rand.uniform())
+    :rand.uniform()
   end
 end

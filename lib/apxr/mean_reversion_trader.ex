@@ -14,18 +14,15 @@ defmodule APXR.MeanReversionTrader do
 
   alias APXR.{
     Exchange,
-    Market,
     Trader
   }
 
-  alias Decimal, as: D
-
   @tick_size Exchange.tick_size(:apxr, :apxr)
 
-  @mrt_delta D.new("0.4")
+  @mrt_delta 0.4
   @mrt_vol 1
-  @mrt_k D.new("2")
-  @mrt_a D.new("0.94")
+  @mrt_k 2
+  @mrt_a 0.94
 
   ## Client API
 
@@ -44,7 +41,7 @@ defmodule APXR.MeanReversionTrader do
   """
   @impl Trader
   def actuate(id) do
-    GenServer.cast(via_tuple(id), {:actuate})
+    GenServer.call(via_tuple(id), {:actuate}, 30000)
   end
 
   @doc """
@@ -67,10 +64,9 @@ defmodule APXR.MeanReversionTrader do
   end
 
   @impl true
-  def handle_cast({:actuate}, state) do
+  def handle_call({:actuate}, _from, state) do
     trader = mean_reversion_trader(state)
-    Market.ack(trader.trader_id)
-    {:noreply, %{state | trader: trader}}
+    {:reply, :ok, %{state | trader: trader}}
   end
 
   @impl true
@@ -82,11 +78,6 @@ defmodule APXR.MeanReversionTrader do
   @impl true
   def handle_info(_msg, state) do
     {:noreply, state}
-  end
-
-  @impl true
-  def terminate(_reason, %{trader: trader}) do
-    Market.ack(trader.trader_id)
   end
 
   ## Private
@@ -107,14 +98,14 @@ defmodule APXR.MeanReversionTrader do
 
     x = p = Exchange.last_price(venue, ticker)
 
-    ema = D.add(ema_prev, D.mult(@mrt_a, D.sub(p, ema_prev)))
+    ema = ema_prev + @mrt_a * (p - ema_prev)
 
     {n1, m1, s1} = running_stat(n, x, m, s)
     std_dev = std_dev(n, s)
 
-    if D.lt?(rand(), @mrt_delta) do
+    if rand() < @mrt_delta do
       cost = mean_reversion_place_order(venue, ticker, tid, ask_price, bid_price, p, ema, std_dev)
-      cash = cash |> D.sub(cost) |> D.max("0")
+      cash = max(cash - cost, 0.0) |> Float.round(2)
 
       %{trader | cash: cash, n: n1, m: m1, s: s1, ema_prev: ema}
     else
@@ -124,50 +115,47 @@ defmodule APXR.MeanReversionTrader do
 
   defp mean_reversion_place_order(venue, ticker, tid, ask_price, bid_price, p, ema, std_dev) do
     cond do
-      D.gt?(D.sub(p, ema), D.mult(@mrt_k, std_dev)) or
-          D.eq?(D.sub(p, ema), D.mult(@mrt_k, std_dev)) ->
-        price = D.sub(ask_price, @tick_size)
+      p - ema >= @mrt_k * std_dev ->
+        price = ask_price - @tick_size
 
         Exchange.sell_limit_order(venue, ticker, tid, price, @mrt_vol)
 
-        D.mult(price, @mrt_vol)
+        price * @mrt_vol
 
-      D.gt?(D.sub(ema, p), D.mult(@mrt_k, std_dev)) or
-          D.eq?(D.sub(ema, p), D.mult(@mrt_k, std_dev)) ->
-        price = D.add(bid_price, @tick_size)
+      ema - p > @mrt_k * std_dev ->
+        price = bid_price * @tick_size
 
         Exchange.buy_limit_order(venue, ticker, tid, price, @mrt_vol)
 
-        D.mult(price, @mrt_vol)
+        price * @mrt_vol
 
       true ->
-        D.new("0")
+        0.0
     end
   end
 
   defp running_stat(n, x, prev_m, prev_s) do
-    n1 = D.add(n, 1)
+    n1 = n + 1
 
-    if D.eq?(n1, 1) do
-      {n1, x, D.new("0")}
+    if n1 == 1 do
+      {n1, x, 0}
     else
-      m = D.add(prev_m, D.div(D.sub(x, prev_m), n))
-      s = D.add(prev_s, D.mult(D.sub(x, prev_m), D.sub(x, m)))
+      m = prev_m + (x - prev_m) / n
+      s = prev_s + (x - prev_m) * (x - m)
 
       {n1, m, s}
     end
   end
 
   defp std_dev(n, s) do
-    var(n, s)
-    |> D.sqrt()
+    var(n, s) |> :math.sqrt()
   end
 
   defp var(n, s) do
-    if D.gt?(n, 1) do
-      D.div(s, D.sub(n, 1))
+    if n > 1 do
+      abs(s / (n - 1))
     else
-      D.new("0")
+      0.0
     end
   end
 
@@ -177,14 +165,14 @@ defmodule APXR.MeanReversionTrader do
     %Trader{
       trader_id: {__MODULE__, id},
       type: :mean_reversion_trader,
-      cash: D.new("20000000"),
+      cash: 20_000_000.0,
       outstanding_orders: [],
-      n: D.new("0"),
+      n: 0,
       ema_prev: last_price
     }
   end
 
   defp rand() do
-    D.from_float(:rand.uniform())
+    :rand.uniform()
   end
 end

@@ -8,7 +8,7 @@ defmodule APXR.ProgressBar do
   @incomplete_character "_"
 
   def print(current, total) do
-    percent = percent = (current / total * 100) |> round
+    percent = percent = (current / total * 100) |> Float.round(1)
     divisor = 100 / @progress_bar_size
 
     complete_count = round(percent / divisor)

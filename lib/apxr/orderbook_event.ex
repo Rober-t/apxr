@@ -31,7 +31,7 @@ defmodule APXR.OrderbookEvent do
           order_id: pos_integer(),
           trader_id: tuple(),
           volume: pos_integer(),
-          price: Decimal.t() | nil,
+          price: float() | nil,
           direction: integer(),
           transaction: boolean()
         }

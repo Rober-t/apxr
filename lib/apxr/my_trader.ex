@@ -9,12 +9,9 @@ defmodule APXR.MyTrader do
   use GenServer
 
   alias APXR.{
-    Market,
     Order,
     Trader
   }
-
-  alias Decimal, as: D
 
   ## Client API
 
@@ -33,7 +30,7 @@ defmodule APXR.MyTrader do
   """
   @impl Trader
   def actuate(id) do
-    GenServer.cast(via_tuple(id), {:actuate})
+    GenServer.call(via_tuple(id), {:actuate}, 30000)
   end
 
   @doc """
@@ -57,10 +54,9 @@ defmodule APXR.MyTrader do
   end
 
   @impl true
-  def handle_cast({:actuate}, state) do
+  def handle_call({:actuate}, _from, state) do
     trader = my_trader(state)
-    Market.ack(trader.trader_id)
-    {:noreply, %{state | trader: trader}}
+    {:reply, :ok, %{state | trader: trader}}
   end
 
   @impl true
@@ -78,11 +74,6 @@ defmodule APXR.MyTrader do
   @impl true
   def handle_info(_msg, state) do
     {:noreply, state}
-  end
-
-  @impl true
-  def terminate(_reason, %{trader: trader}) do
-    Market.ack(trader.trader_id)
   end
 
   ## Private
@@ -138,7 +129,7 @@ defmodule APXR.MyTrader do
     %Trader{
       trader_id: {__MODULE__, id},
       type: :my_trader,
-      cash: D.new("20000000"),
+      cash: 20_000_000.0,
       outstanding_orders: []
     }
   end

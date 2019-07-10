@@ -27,7 +27,7 @@ Upon being chosen to act, if an agent wishes to submit an order, it will communi
 --------------------
 ### Requirements
 
-  - [Erlang/OTP 21](https://github.com/erlang)
+  - [Erlang/OTP 22](https://github.com/erlang)
   - [Elixir](https://elixir-lang.org/)
 
 --------------------
@@ -71,7 +71,7 @@ The system is composed of the following Elixir GenServer processes all of which 
 
 Separating the runtime for each of these processes provides us with isolation guarantees that allow us to grow functionality irrespective to dependencies one component may have on another, not to mention the extremely desired behavior that system failures will not bring down non-dependent parts of the application. Basically, a trader process failing shouldn't bring down the Exchange. We can think of our system as a collection of small, independent threads of logic that communicate with other processes through an agreed upon interface.
 
-![img_1](https://github.com/Rober-t/apxr/blob/master/img.png)
+![img](https://github.com/Rober-t/apxr/blob/master/img.png)
 
 **Summary of messages used in the main interactions**
 
@@ -83,13 +83,13 @@ Separating the runtime for each of these processes provides us with isolation gu
 | Output from venue       | Description                                                          | Sent to                   |
 |------------------------ |--------------------------------------------------------------------- |-------------------------  |
 | Order Execution Report  | An execution report is sent after an order is completed or canceled  | Trader                    |
-| Orderbook Event         | A report is sent after when certain orderbook events occur           | Reporting Service         |
+| Orderbook Event         | A report is sent when certain orderbook events occur                 | Reporting Service         |
 | Market Data             | Level 1 and Level 2 market data                                      | Trader                    |
 
 | Input to trader         | Description                                                          | Received from             |
 |------------------------ |--------------------------------------------------------------------- |-------------------------  |
-| Order Execution Report  | An execution report is received after an order is completed          | Trading Venue             |
-| Orderbook Event         | If subscribed, a report is sent after when certain events occur      | Reporting Service         |
+| Order Execution Report  | An execution report is received after an order is completed/canceled | Trading Venue             |
+| Orderbook Event         | If subscribed, a report is sent after certain events occur           | Reporting Service         |
 | Market Data             | Level 1 and Level 2 market data                                      | Trading Venue             |
 
 --------------------

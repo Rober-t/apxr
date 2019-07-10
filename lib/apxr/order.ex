@@ -28,7 +28,7 @@ defmodule APXR.Order do
           trader_id: tuple(),
           side: non_neg_integer(),
           volume: pos_integer(),
-          price: Decimal.t() | nil,
+          price: float() | nil,
           acknowledged_at: integer() | nil
         }
 end

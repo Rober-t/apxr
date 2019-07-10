@@ -30,11 +30,11 @@ defmodule APXR.Trader do
           cash: non_neg_integer() | nil,
           outstanding_orders: list() | nil,
           side: non_neg_integer() | nil,
-          n: Decimal.t() | nil,
-          m: Decimal.t() | nil,
-          s: Decimal.t() | nil,
-          ema_prev: Decimal.t() | nil,
-          vol_to_fill: Decimal.t() | nil
+          n: float() | nil,
+          m: float() | nil,
+          s: float() | nil,
+          ema_prev: float() | nil,
+          vol_to_fill: float() | nil
         }
 
   @callback actuate(id :: integer()) :: :ok

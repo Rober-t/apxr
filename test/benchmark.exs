@@ -1,3 +1,5 @@
+:ets.update_counter(:run_index, :iteration, 1, {0, 0})
+
 Benchee.run(%{
   "insert and cancel a buy order": fn ->
     order1 = APXR.Exchange.buy_limit_order(:apxr, :apxr, {APXR.NoiseTrader, 1}, 100.0, 100)
