@@ -21,7 +21,7 @@ defmodule APXR.MeanReversionTrader do
 
   @mrt_delta 0.4
   @mrt_vol 1
-  @mrt_k 2
+  @mrt_k 5
   @mrt_a 0.94
 
   ## Client API
@@ -122,8 +122,8 @@ defmodule APXR.MeanReversionTrader do
 
         price * @mrt_vol
 
-      ema - p > @mrt_k * std_dev ->
-        price = bid_price * @tick_size
+      ema - p >= @mrt_k * std_dev ->
+        price = bid_price + @tick_size
 
         Exchange.buy_limit_order(venue, ticker, tid, price, @mrt_vol)
 

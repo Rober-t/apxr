@@ -240,7 +240,7 @@ defmodule APXR.NoiseTrader do
   defp noise_trader_market_order(venue, ticker, :buy, tid) do
     vol =
       min(
-        Exchange.ask_size(venue, ticker) / 2,
+        Enum.sum(Exchange.lowest_ask_prices(venue, ticker)),
         :math.exp(@nt_mu_mo + @nt_sigma_mo * rand())
       )
 
@@ -252,7 +252,7 @@ defmodule APXR.NoiseTrader do
   defp noise_trader_market_order(venue, ticker, :sell, tid) do
     vol =
       min(
-        Exchange.bid_size(venue, ticker) / 2,
+        Enum.sum(Exchange.highest_bid_prices(venue, ticker)),
         :math.exp(@nt_mu_mo + @nt_sigma_mo * rand())
       )
 
