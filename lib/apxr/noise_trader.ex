@@ -71,8 +71,6 @@ defmodule APXR.NoiseTrader do
   @impl true
   def init(id) do
     :rand.seed(:exsplus)
-    # Uncomment for a constant random seed
-    # :rand.seed(:exsplus, {1, 2, 3})
     trader = init_trader(id)
     {:ok, %{trader: trader}}
   end

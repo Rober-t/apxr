@@ -6,13 +6,19 @@ defmodule APXR.ExchangeTest do
   alias APXR.{
     Exchange,
     OrderbookEvent,
-    Order
+    Order,
+    ReportingService
   }
 
   setup_all do
-    :ets.update_counter(:run_index, :iteration, 1, {0, 1})
+    :ets.update_counter(:run_number, :number, 1, {0, 0})
+    :ets.update_counter(:timestep, :step, 1, {0, 0})
+
+    ReportingService.prep(1)
+
     %Order{} = Exchange.buy_limit_order(:apxr, :apxr, {APXR.NoiseTrader, 1}, 99.99, 100)
     %Order{} = Exchange.sell_limit_order(:apxr, :apxr, {APXR.NoiseTrader, 1}, 100.01, 100)
+
     %{venue: :apxr, ticker: :apxr, trader: {APXR.NoiseTrader, 1}}
   end
 

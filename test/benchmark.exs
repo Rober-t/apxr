@@ -1,4 +1,5 @@
-:ets.update_counter(:run_index, :iteration, 1, {0, 0})
+:ets.update_counter(:run_number, :number, 1, {0, 0})
+:ets.update_counter(:timestep, :step, 1, {0, 0})
 
 Benchee.run(%{
   "insert and cancel a buy order": fn ->

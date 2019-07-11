@@ -46,8 +46,6 @@ defmodule APXR.MyTrader do
   @impl true
   def init(id) do
     :rand.seed(:exsplus)
-    # Uncomment for a constant random seed
-    # :rand.seed(:exsplus, {1, 2, 3})
     {:ok, _} = Registry.register(APXR.ReportingServiceRegistry, "orderbook_event", [])
     trader = init_trader(id)
     {:ok, %{order_side_history: [], trader: trader}}

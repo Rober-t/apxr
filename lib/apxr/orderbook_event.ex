@@ -4,7 +4,7 @@ defmodule APXR.OrderbookEvent do
   """
 
   @enforce_keys [
-    :run_index,
+    :timestep,
     :uid,
     :type,
     :order_id,
@@ -14,7 +14,7 @@ defmodule APXR.OrderbookEvent do
     :transaction
   ]
 
-  defstruct run_index: nil,
+  defstruct timestep: nil,
             uid: nil,
             type: nil,
             order_id: nil,
@@ -25,7 +25,7 @@ defmodule APXR.OrderbookEvent do
             transaction: nil
 
   @type t() :: %__MODULE__{
-          run_index: pos_integer(),
+          timestep: pos_integer(),
           uid: integer(),
           type: atom(),
           order_id: pos_integer(),

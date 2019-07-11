@@ -1,7 +1,7 @@
 defmodule APXR.Market do
   @moduledoc """
   Coordinates the market participants, for example, summoning the traders to
-  act each iteration.
+  act each timestep.
   """
 
   use GenServer
@@ -15,10 +15,11 @@ defmodule APXR.Market do
     MyTrader,
     NoiseTrader,
     ProgressBar,
-    ReportingService
+    ReportingService,
+    Simulation
   }
 
-  @iterations 300_000
+  @timesteps 300_000
 
   ## Client API
 
@@ -32,8 +33,8 @@ defmodule APXR.Market do
   @doc """
   Triggers a new simulation run. E.g. One day run of the market. 
   """
-  def open do
-    GenServer.cast(__MODULE__, {:open})
+  def open(run_number) do
+    GenServer.cast(__MODULE__, {:open, run_number})
   end
 
   ## Server callbacks
@@ -50,17 +51,14 @@ defmodule APXR.Market do
         }
       ]) do
     :rand.seed(:exsplus)
-    # Uncomment for a constant random seed
-    # :rand.seed(:exsplus, {1, 2, 3})
-    :ets.new(:run_index, [:public, :named_table])
+    :ets.new(:timestep, [:public, :named_table, read_concurrency: true])
     traders = init_traders(lcs, mms, mrts, mmts, nts, myts)
     {:ok, %{traders: traders}}
   end
 
   @impl true
-  @spec handle_cast(any(), any()) :: no_return()
-  def handle_cast({:open}, state) do
-    open(state)
+  def handle_cast({:open, run_number}, state) do
+    do_open(run_number, state)
     {:noreply, state}
   end
 
@@ -71,32 +69,25 @@ defmodule APXR.Market do
 
   ## Private
 
-  defp open(%{traders: traders} = _state) do
+  defp do_open(run_number, %{traders: traders}) do
+    ReportingService.prep(run_number)
     call_to_action(traders)
   end
 
   defp call_to_action(traders) when is_list(traders) do
-    IO.puts("")
-    IO.puts("MARKET OPEN")
-    IO.puts("")
-
-    :ets.update_counter(:run_index, :iteration, 1, {0, 0})
-
-    call_to_action(traders, 0, @iterations)
+    IO.puts("\nMARKET OPEN")
+    :ets.update_counter(:timestep, :step, 1, {0, 0})
+    call_to_action(traders, 0, @timesteps)
   end
 
   defp call_to_action(_traders, i, 0) do
-    ProgressBar.print(i, @iterations)
-
-    IO.puts("\n")
-    IO.puts("MARKET CLOSED")
-    IO.puts("")
-
-    System.stop(0)
+    ProgressBar.print(i, @timesteps)
+    IO.puts("\nMARKET CLOSED")
+    Simulation.run_over()
   end
 
-  defp call_to_action(traders, i, iterations_left) do
-    if rem(i, 100) == 0, do: ProgressBar.print(i, @iterations)
+  defp call_to_action(traders, i, timsteps_left) do
+    if rem(i, 100) == 0, do: ProgressBar.print(i, @timesteps)
 
     maybe_populate_orderbook()
 
@@ -122,9 +113,12 @@ defmodule APXR.Market do
       end
     end
 
-    Exchange.mid_price(:apxr, :apxr) |> ReportingService.push_mid_price(i + 1)
-    :ets.update_counter(:run_index, :iteration, 1)
-    Enum.shuffle(traders) |> call_to_action(i + 1, iterations_left - 1)
+    Exchange.mid_price(:apxr, :apxr)
+    |> ReportingService.push_mid_price(i + 1)
+
+    :ets.update_counter(:timestep, :step, 1)
+
+    Enum.shuffle(traders) |> call_to_action(i + 1, timsteps_left - 1)
   end
 
   defp maybe_populate_orderbook() do

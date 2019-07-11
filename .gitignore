@@ -22,9 +22,6 @@ apxr-*.tar
 # Ignore CSV files
 *.csv
 
-# Ignore Linter file
-*.credo.exs
-
 # Ignore asdf versions file
 *.tool-versions
 

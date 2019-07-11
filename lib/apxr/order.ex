@@ -18,8 +18,7 @@ defmodule APXR.Order do
             trader_id: nil,
             side: nil,
             volume: nil,
-            price: nil,
-            acknowledged_at: nil
+            price: nil
 
   @type t() :: %__MODULE__{
           ticker: atom(),
@@ -28,7 +27,6 @@ defmodule APXR.Order do
           trader_id: tuple(),
           side: non_neg_integer(),
           volume: pos_integer(),
-          price: float() | nil,
-          acknowledged_at: integer() | nil
+          price: float() | nil
         }
 end

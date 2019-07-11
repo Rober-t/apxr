@@ -17,7 +17,8 @@ defmodule APXR.ProgressBar do
     complete = String.duplicate(@complete_character, complete_count)
     incomplete = String.duplicate(@incomplete_character, incomplete_count)
 
-    progress_bar = "|#{complete}#{incomplete}|   #{percent}%  #{current}/#{total} iterations"
+    progress_bar = "|#{complete}#{incomplete}|   #{percent}%  #{current}/#{total}"
+
     IO.write("\r#{progress_bar}")
   end
 end

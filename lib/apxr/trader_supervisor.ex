@@ -20,9 +20,7 @@ defmodule APXR.TraderSupervisor do
           noise_traders: nts,
           my_traders: myts
         }
-      ])
-      when is_integer(lcs) and is_integer(mms) and is_integer(mrts) and is_integer(mmts) and
-             is_integer(nts) and is_integer(myts) do
+      ]) do
     children =
       liquidity_consumers(lcs) ++
         market_makers(mms) ++

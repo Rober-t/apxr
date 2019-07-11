@@ -313,11 +313,9 @@ defmodule APXR.Exchange do
   ## Server callbacks
 
   @impl true
-  def init([venue, ticker, init_price, init_vol])
-      when is_atom(venue) and is_atom(ticker) and is_float(init_price) and is_integer(init_vol) do
+  def init([venue, ticker, init_price, init_vol]) do
     :rand.seed(:exsplus)
-    # Uncomment for a constant random seed
-    # :rand.seed(:exsplus, {1, 2, 3})
+
     {:ok,
      %{
        venue: venue,
@@ -507,18 +505,19 @@ defmodule APXR.Exchange do
       side: side,
       price: normalize_price(price),
       volume: normalize_volume(vol),
-      acknowledged_at: set_acknowledged_at(),
       order_id: generate_id()
     }
   end
 
-  defp do_market_order(%Order{} = order, state) do
+  defp do_market_order(%Order{order_id: order_id, side: side} = order, state) do
     log_orderbook_event(order, :new_market_order)
+    ReportingService.push_order_side(timestep(), order_id, :market_order, side)
     price_time_match(order, state, :market_order)
   end
 
-  defp do_limit_order(%Order{} = order, state) do
+  defp do_limit_order(%Order{order_id: order_id, side: side} = order, state) do
     log_orderbook_event(order, :new_limit_order)
+    ReportingService.push_order_side(timestep(), order_id, :limit_order, side)
     price_time_match(order, state, :limit_order)
   end
 
@@ -716,11 +715,12 @@ defmodule APXR.Exchange do
 
     if order_type == :market_order do
       ReportingService.push_price_impact(
-        run_index(),
+        timestep(),
         order.order_id,
+        :market_order,
+        order_vol,
         ask_min,
-        do_ask_price(ask_book),
-        order_vol
+        do_ask_price(ask_book)
       )
     end
 
@@ -746,11 +746,12 @@ defmodule APXR.Exchange do
 
     if order_type == :market_order do
       ReportingService.push_price_impact(
-        run_index(),
+        timestep(),
         order.order_id,
+        :market_order,
+        order_vol,
         ask_min,
-        do_ask_price(ask_book),
-        order_vol
+        do_ask_price(ask_book)
       )
     end
 
@@ -779,11 +780,12 @@ defmodule APXR.Exchange do
 
     if order_type == :market_order do
       ReportingService.push_price_impact(
-        run_index(),
+        timestep(),
         order.order_id,
+        :market_order,
+        order_vol,
         ask_min,
-        do_ask_price(ask_book),
-        order_vol
+        do_ask_price(ask_book)
       )
     end
 
@@ -811,11 +813,12 @@ defmodule APXR.Exchange do
 
     if order_type == :market_order do
       ReportingService.push_price_impact(
-        run_index(),
+        timestep(),
         order.order_id,
+        :market_order,
+        order_vol,
         bid_max,
-        do_bid_price(bid_book),
-        order_vol
+        do_bid_price(bid_book)
       )
     end
 
@@ -841,11 +844,12 @@ defmodule APXR.Exchange do
 
     if order_type == :market_order do
       ReportingService.push_price_impact(
-        run_index(),
+        timestep(),
         order.order_id,
+        :market_order,
+        order_vol,
         bid_max,
-        do_bid_price(bid_book),
-        order_vol
+        do_bid_price(bid_book)
       )
     end
 
@@ -874,11 +878,12 @@ defmodule APXR.Exchange do
 
     if order_type == :market_order do
       ReportingService.push_price_impact(
-        run_index(),
+        timestep(),
         order.order_id,
+        :market_order,
+        order_vol,
         bid_max,
-        do_bid_price(bid_book),
-        order_vol
+        do_bid_price(bid_book)
       )
     end
 
@@ -971,7 +976,7 @@ defmodule APXR.Exchange do
        )
        when is_atom(type) and is_boolean(transaction) do
     event = %OrderbookEvent{
-      run_index: run_index(),
+      timestep: timestep(),
       uid: generate_id(),
       order_id: order_id,
       trader_id: tid,
@@ -983,11 +988,6 @@ defmodule APXR.Exchange do
     }
 
     ReportingService.push_event(event)
-  end
-
-  defp run_index() do
-    [{:iteration, index}] = :ets.lookup(:run_index, :iteration)
-    index
   end
 
   defp bid_tree(bid_max, bid_book) do
@@ -1075,11 +1075,12 @@ defmodule APXR.Exchange do
     round(volume)
   end
 
-  defp set_acknowledged_at do
-    :erlang.monotonic_time(:nanosecond)
-  end
-
   defp generate_id do
     :erlang.unique_integer([:positive, :monotonic])
+  end
+
+  defp timestep() do
+    [{:step, step}] = :ets.lookup(:timestep, :step)
+    step
   end
 end
