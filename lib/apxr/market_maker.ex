@@ -58,7 +58,7 @@ defmodule APXR.MarketMaker do
 
   @impl true
   def init(id) do
-    :rand.seed(:exsplus)
+    :rand.seed(:exsplus, :os.timestamp())
     {:ok, _} = Registry.register(APXR.ReportingServiceRegistry, "orderbook_event", [])
     trader = init_trader(id)
     init_side = Enum.random(0..1)

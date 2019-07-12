@@ -24,4 +24,3 @@ apxr-*.tar
 
 # Ignore asdf versions file
 *.tool-versions
-

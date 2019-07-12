@@ -53,7 +53,7 @@ defmodule APXR.MomentumTrader do
 
   @impl true
   def init(id) do
-    :rand.seed(:exsplus)
+    :rand.seed(:exsplus, :os.timestamp())
     trader = init_trader(id)
     {:ok, %{trader: trader}}
   end

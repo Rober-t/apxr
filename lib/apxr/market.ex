@@ -40,17 +40,7 @@ defmodule APXR.Market do
   ## Server callbacks
 
   @impl true
-  def init([
-        %{
-          liquidity_consumers: lcs,
-          market_makers: mms,
-          mean_reversion_traders: mrts,
-          momentum_traders: mmts,
-          noise_traders: nts,
-          my_traders: myts
-        }
-      ]) do
-    :rand.seed(:exsplus)
+  def init([%{lcs: lcs, mms: mms, mrts: mrts, mmts: mmts, nts: nts, myts: myts}]) do
     :ets.new(:timestep, [:public, :named_table, read_concurrency: true])
     traders = init_traders(lcs, mms, mrts, mmts, nts, myts)
     {:ok, %{traders: traders}}
@@ -129,14 +119,13 @@ defmodule APXR.Market do
   end
 
   defp init_traders(lcs, mms, mrts, mmts, nts, myts) do
-    liquidity_consumers = for id <- 1..lcs, do: {APXR.LiquidityConsumer, id}
-    market_makers = for id <- 1..mms, do: {APXR.MarketMaker, id}
-    mean_reversion_traders = for id <- 1..mrts, do: {APXR.MeanReversionTrader, id}
-    momentum_traders = for id <- 1..mmts, do: {APXR.MomentumTrader, id}
-    noise_traders = for id <- 1..nts, do: {APXR.NoiseTrader, id}
-    my_traders = for id <- 1..myts, do: {APXR.MyTrader, id}
+    lcs = for id <- 1..lcs, do: {APXR.LiquidityConsumer, id}
+    mms = for id <- 1..mms, do: {APXR.MarketMaker, id}
+    mrts = for id <- 1..mrts, do: {APXR.MeanReversionTrader, id}
+    mmts = for id <- 1..mmts, do: {APXR.MomentumTrader, id}
+    nts = for id <- 1..nts, do: {APXR.NoiseTrader, id}
+    myts = for id <- 1..myts, do: {APXR.MyTrader, id}
 
-    liquidity_consumers ++
-      market_makers ++ mean_reversion_traders ++ momentum_traders ++ noise_traders ++ my_traders
+    lcs ++ mms ++ mrts ++ mmts ++ nts ++ myts
   end
 end

@@ -314,8 +314,6 @@ defmodule APXR.Exchange do
 
   @impl true
   def init([venue, ticker, init_price, init_vol]) do
-    :rand.seed(:exsplus)
-
     {:ok,
      %{
        venue: venue,

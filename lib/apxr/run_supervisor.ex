@@ -69,12 +69,12 @@ defmodule APXR.RunSupervisor do
   defp trader_config do
     [
       %{
-        liquidity_consumers: @liquidity_consumers,
-        market_makers: @market_makers,
-        mean_reversion_traders: @mean_reversion_traders,
-        momentum_traders: @momentum_traders,
-        noise_traders: @noise_traders,
-        my_traders: @my_traders
+        lcs: @liquidity_consumers,
+        mms: @market_makers,
+        mrts: @mean_reversion_traders,
+        mmts: @momentum_traders,
+        nts: @noise_traders,
+        myts: @my_traders
       }
     ]
   end

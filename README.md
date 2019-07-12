@@ -45,7 +45,7 @@ Windows: https://github.com/elixir-lang/elixir/wiki/Windows
 ### Quick start
 
 1. Run `mix check`
-2. Run `mix run -e APXR.Market.open --no-halt`
+2. Run `bin/run`
 
 --------------------
 ### Erlang VM

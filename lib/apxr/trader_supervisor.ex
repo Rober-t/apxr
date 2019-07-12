@@ -11,21 +11,14 @@ defmodule APXR.TraderSupervisor do
   end
 
   @impl true
-  def init([
-        %{
-          liquidity_consumers: lcs,
-          market_makers: mms,
-          mean_reversion_traders: mrts,
-          momentum_traders: mmts,
-          noise_traders: nts,
-          my_traders: myts
-        }
-      ]) do
+  def init([%{lcs: lcs, mms: mms, mrts: mrts, mmts: mmts, nts: nts, myts: myts}]) do
     children =
       liquidity_consumers(lcs) ++
         market_makers(mms) ++
         mean_reversion_traders(mrts) ++
-        momentum_traders(mmts) ++ noise_traders(nts) ++ my_traders(myts)
+        momentum_traders(mmts) ++
+        noise_traders(nts) ++
+        my_traders(myts)
 
     Supervisor.init(children, strategy: :one_for_one)
   end

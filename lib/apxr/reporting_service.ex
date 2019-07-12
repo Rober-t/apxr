@@ -3,7 +3,8 @@ NimbleCSV.define(CSV.RFC4180,
   escape: "\"",
   skip_headers: true,
   moduledoc: """
-  A CSV parser that uses comma as separator and double-quotes as escape according to RFC4180.
+  A CSV parser that uses comma as separator and double-quotes as escape
+  according to RFC4180.
   """
 )
 
@@ -134,10 +135,6 @@ defmodule APXR.ReportingService do
   ## Private
 
   defp do_prep(run_number) do
-    dir = File.cwd!() |> Path.join("/output")
-    File.rm_rf!(dir)
-    File.mkdir!(dir)
-
     run = to_string(run_number)
 
     event_log_path = File.cwd!() |> Path.join("/output/apxr_trades" <> run <> ".csv")

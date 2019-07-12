@@ -10,7 +10,7 @@ defmodule APXR.Simulation do
     RunSupervisor
   }
 
-  @total_runs 50
+  @total_runs 10
 
   ## Client API
 
@@ -42,6 +42,9 @@ defmodule APXR.Simulation do
   @impl true
   def init([]) do
     :ets.new(:run_number, [:public, :named_table, read_concurrency: true])
+    dir = File.cwd!() |> Path.join("/output")
+    File.rm_rf!(dir)
+    File.mkdir!(dir)
     {:ok, %{}}
   end
 
