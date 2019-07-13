@@ -80,31 +80,27 @@ defmodule APXR.ReportingService do
   end
 
   @impl true
-  def handle_cast({:push_mid_price, timestep, price}, %{run_number: run_number} = state) do
-    write_csv_file([[run_number, timestep, price]], :mid_price, state)
+  def handle_cast({:push_mid_price, _timestep, price}, %{run_number: _run_number} = state) do
+    write_csv_file([[price]], :mid_price, state)
     {:noreply, state}
   end
 
   @impl true
   def handle_cast(
-        {:push_order_side, timestep, order_id, order_type, side},
-        %{run_number: run_number} = state
+        {:push_order_side, _timestep, _order_id, _order_type, side},
+        %{run_number: _run_number} = state
       ) do
-    write_csv_file([[run_number, timestep, order_id, order_type, side]], :order_side, state)
+    write_csv_file([[side]], :order_side, state)
     {:noreply, state}
   end
 
   @impl true
   def handle_cast(
-        {:push_price_impact, timestep, id, type, vol, before_price, after_price},
-        %{run_number: run_number} = state
+        {:push_price_impact, _timestep, _id, _type, vol, before_price, after_price},
+        %{run_number: _run_number} = state
       ) do
-    write_csv_file(
-      [[run_number, timestep, id, type, vol, before_price, after_price]],
-      :price_impact,
-      state
-    )
-
+    impact = :math.log(after_price) - :math.log(before_price)
+    write_csv_file([[vol, impact]], :price_impact, state)
     {:noreply, state}
   end
 
@@ -212,24 +208,25 @@ defmodule APXR.ReportingService do
   defp parse_event_data(
          run_number,
          %OrderbookEvent{
-           timestep: timestep,
-           uid: uid,
-           order_id: order_id,
-           type: type,
-           volume: volume,
-           direction: direction,
+           timestep: _timestep,
+           uid: _uid,
+           order_id: _order_id,
+           type: _type,
+           volume: _volume,
+           direction: _direction,
            price: price
          }
        ) do
     [
       [
-        run_number,
-        timestep,
-        uid,
-        order_id,
-        type,
-        volume,
-        direction,
+        # run_number,
+        # timestep,
+        # uid,
+        # order_id,
+        # type,
+        # volume,
+        # direction,
+        # price
         price
       ]
     ]

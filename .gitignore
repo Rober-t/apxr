@@ -24,3 +24,6 @@ apxr-*.tar
 
 # Ignore asdf versions file
 *.tool-versions
+
+# Jupyter
+*.ipynb_checkpoints

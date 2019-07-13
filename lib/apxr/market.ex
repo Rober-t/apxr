@@ -19,7 +19,7 @@ defmodule APXR.Market do
     Simulation
   }
 
-  @timesteps 300_000
+  @timesteps 10000
 
   ## Client API
 
