@@ -19,7 +19,7 @@ defmodule APXR.Market do
     Simulation
   }
 
-  @timesteps 10000
+  @timesteps 300_000
 
   ## Client API
 
@@ -107,7 +107,6 @@ defmodule APXR.Market do
     |> ReportingService.push_mid_price(i + 1)
 
     :ets.update_counter(:timestep, :step, 1)
-
     Enum.shuffle(traders) |> call_to_action(i + 1, timsteps_left - 1)
   end
 

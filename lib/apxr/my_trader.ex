@@ -81,44 +81,38 @@ defmodule APXR.MyTrader do
 
   defp update_outstanding_orders(
          %Order{order_id: order_id},
-         %{trader: %Trader{outstanding_orders: outstanding_orders} = trader} = state,
+         %{trader: %Trader{outstanding_orders: outstanding} = trader} = state,
          msg
        )
        when msg in [:full_fill_buy_order, :full_fill_sell_order] do
-    outstanding_orders =
-      Enum.reject(outstanding_orders, fn %Order{order_id: id} -> id == order_id end)
-
-    trader = %{trader | outstanding_orders: outstanding_orders}
+    outstanding = Enum.reject(outstanding, fn %Order{order_id: id} -> id == order_id end)
+    trader = %{trader | outstanding_orders: outstanding}
     %{state | trader: trader}
   end
 
   defp update_outstanding_orders(
          %Order{order_id: order_id} = order,
-         %{trader: %Trader{outstanding_orders: outstanding_orders} = trader} = state,
+         %{trader: %Trader{outstanding_orders: outstanding} = trader} = state,
          msg
        )
        when msg in [:partial_fill_buy_order, :partial_fill_sell_order] do
-    outstanding_orders =
-      Enum.reject(outstanding_orders, fn %Order{order_id: id} -> id == order_id end)
-
-    trader = %{trader | outstanding_orders: [order | outstanding_orders]}
+    outstanding = Enum.reject(outstanding, fn %Order{order_id: id} -> id == order_id end)
+    trader = %{trader | outstanding_orders: [order | outstanding]}
     %{state | trader: trader}
   end
 
   defp update_outstanding_orders(
          %Order{order_id: order_id},
-         %{trader: %Trader{outstanding_orders: outstanding_orders} = trader} = state,
+         %{trader: %Trader{outstanding_orders: outstanding} = trader} = state,
          :cancelled_order
        ) do
-    outstanding_orders =
-      Enum.reject(outstanding_orders, fn %Order{order_id: id} -> id == order_id end)
-
-    trader = %{trader | outstanding_orders: outstanding_orders}
+    outstanding = Enum.reject(outstanding, fn %Order{order_id: id} -> id == order_id end)
+    trader = %{trader | outstanding_orders: outstanding}
     %{state | trader: trader}
   end
 
   defp my_trader(%{trader: %Trader{} = trader} = _state) do
-    # Your magic logic goes here...
+    # Your logic goes here...
     trader
   end
 

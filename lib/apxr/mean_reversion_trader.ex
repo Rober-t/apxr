@@ -21,7 +21,7 @@ defmodule APXR.MeanReversionTrader do
 
   @mrt_delta 0.4
   @mrt_vol 1
-  @mrt_k 5
+  @mrt_k 2
   @mrt_a 0.94
 
   ## Client API
@@ -56,7 +56,6 @@ defmodule APXR.MeanReversionTrader do
 
   @impl true
   def init(id) do
-    :rand.seed(:exsplus, :os.timestamp())
     trader = init_trader(id)
     {:ok, %{trader: trader}}
   end
@@ -90,21 +89,16 @@ defmodule APXR.MeanReversionTrader do
        }) do
     venue = :apxr
     ticker = :apxr
-
     bid_price = Exchange.bid_price(venue, ticker)
     ask_price = Exchange.ask_price(venue, ticker)
-
     x = p = Exchange.last_price(venue, ticker)
-
     ema = ema_prev + @mrt_a * (p - ema_prev)
-
     {n1, m1, s1} = running_stat(n, x, m, s)
     std_dev = std_dev(n, s)
 
-    if rand() < @mrt_delta do
+    if :rand.uniform() < @mrt_delta do
       cost = mean_reversion_place_order(venue, ticker, tid, ask_price, bid_price, p, ema, std_dev)
       cash = max(cash - cost, 0.0) |> Float.round(2)
-
       %{trader | cash: cash, n: n1, m: m1, s: s1, ema_prev: ema}
     else
       %{trader | n: n1, m: m1, s: s1, ema_prev: ema}
@@ -115,16 +109,12 @@ defmodule APXR.MeanReversionTrader do
     cond do
       p - ema >= @mrt_k * std_dev ->
         price = ask_price - @tick_size
-
         Exchange.sell_limit_order(venue, ticker, tid, price, @mrt_vol)
-
         price * @mrt_vol
 
       ema - p >= @mrt_k * std_dev ->
         price = bid_price + @tick_size
-
         Exchange.buy_limit_order(venue, ticker, tid, price, @mrt_vol)
-
         price * @mrt_vol
 
       true ->
@@ -140,7 +130,6 @@ defmodule APXR.MeanReversionTrader do
     else
       m = prev_m + (x - prev_m) / n
       s = prev_s + (x - prev_m) * (x - m)
-
       {n1, m, s}
     end
   end
@@ -168,9 +157,5 @@ defmodule APXR.MeanReversionTrader do
       n: 0,
       ema_prev: last_price
     }
-  end
-
-  defp rand() do
-    :rand.uniform()
   end
 end

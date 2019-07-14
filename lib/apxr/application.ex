@@ -8,11 +8,8 @@ defmodule APXR.Application do
 
   def start(_type, _args) do
     Supervisor.start_link(
-      [
-        APXR.Simulation,
-        APXR.RunSupervisor
-      ],
-      strategy: :rest_for_one,
+      [APXR.Simulation, APXR.RunSupervisor],
+      strategy: :one_for_all,
       name: APXR.Supervisor
     )
   end

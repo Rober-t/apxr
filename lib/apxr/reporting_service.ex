@@ -51,10 +51,10 @@ defmodule APXR.ReportingService do
   @doc """
   Writes the price impact data to disk for later processing and analysis.
   """
-  def push_price_impact(timestep, id, type, volume, before_price, after_price) do
+  def push_price_impact(timestep, id, type, volume, before_p, after_p) do
     GenServer.cast(
       __MODULE__,
-      {:push_price_impact, timestep, id, type, volume, before_price, after_price}
+      {:push_price_impact, timestep, id, type, volume, before_p, after_p}
     )
   end
 
@@ -80,26 +80,20 @@ defmodule APXR.ReportingService do
   end
 
   @impl true
-  def handle_cast({:push_mid_price, _timestep, price}, %{run_number: _run_number} = state) do
+  def handle_cast({:push_mid_price, _timestep, price}, state) do
     write_csv_file([[price]], :mid_price, state)
     {:noreply, state}
   end
 
   @impl true
-  def handle_cast(
-        {:push_order_side, _timestep, _order_id, _order_type, side},
-        %{run_number: _run_number} = state
-      ) do
+  def handle_cast({:push_order_side, _timestep, _order_id, _order_type, side}, state) do
     write_csv_file([[side]], :order_side, state)
     {:noreply, state}
   end
 
   @impl true
-  def handle_cast(
-        {:push_price_impact, _timestep, _id, _type, vol, before_price, after_price},
-        %{run_number: _run_number} = state
-      ) do
-    impact = :math.log(after_price) - :math.log(before_price)
+  def handle_cast({:push_price_impact, _timestep, _id, _type, vol, before_p, after_p}, state) do
+    impact = :math.log(after_p) - :math.log(before_p)
     write_csv_file([[vol, impact]], :price_impact, state)
     {:noreply, state}
   end
@@ -205,30 +199,7 @@ defmodule APXR.ReportingService do
     end
   end
 
-  defp parse_event_data(
-         run_number,
-         %OrderbookEvent{
-           timestep: _timestep,
-           uid: _uid,
-           order_id: _order_id,
-           type: _type,
-           volume: _volume,
-           direction: _direction,
-           price: price
-         }
-       ) do
-    [
-      [
-        # run_number,
-        # timestep,
-        # uid,
-        # order_id,
-        # type,
-        # volume,
-        # direction,
-        # price
-        price
-      ]
-    ]
+  defp parse_event_data(_run_number, %OrderbookEvent{price: price}) do
+    [[price]]
   end
 end

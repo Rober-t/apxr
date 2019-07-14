@@ -70,7 +70,6 @@ defmodule APXR.NoiseTrader do
 
   @impl true
   def init(id) do
-    :rand.seed(:exsplus, :os.timestamp())
     trader = init_trader(id)
     {:ok, %{trader: trader}}
   end
@@ -100,102 +99,69 @@ defmodule APXR.NoiseTrader do
 
   defp update_outstanding_orders(
          %Order{order_id: order_id},
-         %{trader: %Trader{outstanding_orders: outstanding_orders} = trader} = state,
+         %{trader: %Trader{outstanding_orders: outstanding} = trader} = state,
          msg
        )
        when msg in [:full_fill_buy_order, :full_fill_sell_order] do
-    outstanding_orders =
-      Enum.reject(outstanding_orders, fn %Order{order_id: id} -> id == order_id end)
-
-    trader = %{trader | outstanding_orders: outstanding_orders}
+    outstanding = Enum.reject(outstanding, fn %Order{order_id: id} -> id == order_id end)
+    trader = %{trader | outstanding_orders: outstanding}
     %{state | trader: trader}
   end
 
   defp update_outstanding_orders(
          %Order{order_id: order_id} = order,
-         %{trader: %Trader{outstanding_orders: outstanding_orders} = trader} = state,
+         %{trader: %Trader{outstanding_orders: outstanding} = trader} = state,
          msg
        )
        when msg in [:partial_fill_buy_order, :partial_fill_sell_order] do
-    outstanding_orders =
-      Enum.reject(outstanding_orders, fn %Order{order_id: id} -> id == order_id end)
-
-    trader = %{trader | outstanding_orders: [order | outstanding_orders]}
+    outstanding = Enum.reject(outstanding, fn %Order{order_id: id} -> id == order_id end)
+    trader = %{trader | outstanding_orders: [order | outstanding]}
     %{state | trader: trader}
   end
 
   defp update_outstanding_orders(
          %Order{order_id: order_id},
-         %{trader: %Trader{outstanding_orders: outstanding_orders} = trader} = state,
+         %{trader: %Trader{outstanding_orders: outstanding} = trader} = state,
          :cancelled_order
        ) do
-    outstanding_orders =
-      Enum.reject(outstanding_orders, fn %Order{order_id: id} -> id == order_id end)
-
-    trader = %{trader | outstanding_orders: outstanding_orders}
+    outstanding = Enum.reject(outstanding, fn %Order{order_id: id} -> id == order_id end)
+    trader = %{trader | outstanding_orders: outstanding}
     %{state | trader: trader}
   end
 
-  defp nt_l do
-    @nt_m + @nt_l
-  end
-
-  defp nt_crs do
-    @nt_crs
-  end
-
-  defp nt_inspr do
-    @nt_crs + @nt_inspr
-  end
-
-  defp nt_spr do
-    @nt_crs + @nt_inspr + @nt_spr
-  end
-
   defp noise_trader(%{
-         trader:
-           %Trader{trader_id: tid, cash: cash, outstanding_orders: outstanding_orders} = trader
+         trader: %Trader{trader_id: tid, cash: cash, outstanding_orders: outstanding} = trader
        }) do
     venue = :apxr
     ticker = :apxr
-
-    action = rand()
-    lo = rand()
-
     type = order_side()
-
     bid_price = Exchange.bid_price(venue, ticker)
     ask_price = Exchange.ask_price(venue, ticker)
-
     spread = max(ask_price - bid_price, @tick_size)
-
     off_sprd_amnt = off_sprd_amnt(@nt_xmin, @nt_beta) + spread
-
     in_spr_price = Enum.random(round(bid_price * 100)..round(ask_price * 100)) / 100
-
     maybe_populate_orderbook(venue, ticker, tid, bid_price, ask_price)
 
-    if rand() < @nt_delta do
-      cond do
-        action < @nt_m ->
+    if :rand.uniform() < @nt_delta do
+      case :rand.uniform() do
+        action when action < @nt_m ->
           cost = noise_trader_market_order(venue, ticker, type, tid)
           cash = max(cash - cost, 0.0) |> Float.round(2)
-
           %{trader | cash: cash}
 
-        action < nt_l() ->
+        action when action < @nt_m + @nt_l ->
           {cost, orders} =
-            cond do
-              lo < nt_crs() ->
+            case :rand.uniform() do
+              lo when lo < @nt_crs ->
                 noise_trader_limit_order(type, venue, ticker, tid, ask_price, bid_price)
 
-              lo < nt_inspr() ->
+              lo when lo < @nt_crs + @nt_inspr ->
                 noise_trader_limit_order(type, venue, ticker, tid, in_spr_price, in_spr_price)
 
-              lo < nt_spr() ->
+              lo when lo < @nt_crs + @nt_inspr + @nt_spr ->
                 noise_trader_limit_order(type, venue, ticker, tid, bid_price, ask_price)
 
-              true ->
+              _ ->
                 noise_trader_limit_order(
                   type,
                   venue,
@@ -209,13 +175,11 @@ defmodule APXR.NoiseTrader do
 
           cash = max(cash - cost, 0.0) |> Float.round(2)
           orders = Enum.reject(orders, fn order -> order == :rejected end)
+          %{trader | cash: cash, outstanding_orders: outstanding ++ orders}
 
-          %{trader | cash: cash, outstanding_orders: outstanding_orders ++ orders}
-
-        true ->
-          outstanding_orders = maybe_cancel_order(venue, ticker, outstanding_orders)
-
-          %{trader | outstanding_orders: outstanding_orders}
+        _ ->
+          outstanding = maybe_cancel_order(venue, ticker, outstanding)
+          %{trader | outstanding_orders: outstanding}
       end
     else
       trader
@@ -225,9 +189,7 @@ defmodule APXR.NoiseTrader do
   defp maybe_cancel_order(venue, ticker, outstanding_orders)
        when is_list(outstanding_orders) and length(outstanding_orders) > 0 do
     {orders, [order]} = Enum.split(outstanding_orders, -1)
-
     Exchange.cancel_order(venue, ticker, order)
-
     orders
   end
 
@@ -239,11 +201,10 @@ defmodule APXR.NoiseTrader do
     vol =
       min(
         Enum.sum(Exchange.lowest_ask_prices(venue, ticker)),
-        :math.exp(@nt_mu_mo + @nt_sigma_mo * rand())
+        :math.exp(@nt_mu_mo + @nt_sigma_mo * :rand.uniform())
       )
 
     Exchange.buy_market_order(venue, ticker, tid, vol)
-
     vol * Exchange.ask_price(venue, ticker)
   end
 
@@ -251,65 +212,51 @@ defmodule APXR.NoiseTrader do
     vol =
       min(
         Enum.sum(Exchange.highest_bid_prices(venue, ticker)),
-        :math.exp(@nt_mu_mo + @nt_sigma_mo * rand())
+        :math.exp(@nt_mu_mo + @nt_sigma_mo * :rand.uniform())
       )
 
     Exchange.sell_market_order(venue, ticker, tid, vol)
-
     vol * Exchange.bid_price(venue, ticker)
   end
 
   defp noise_trader_limit_order(:buy, venue, ticker, tid, price1, _price2) do
-    vol = :math.exp(@nt_mu_lo + @nt_sigma_lo * rand()) |> round()
-
+    vol = :math.exp(@nt_mu_lo + @nt_sigma_lo * :rand.uniform()) |> round()
     order = Exchange.buy_limit_order(venue, ticker, tid, price1, vol)
     cost = vol * price1
-
     {cost, [order]}
   end
 
   defp noise_trader_limit_order(:sell, venue, ticker, tid, _price1, price2) do
-    vol = :math.exp(@nt_mu_lo + @nt_sigma_lo * rand()) |> round()
-
+    vol = :math.exp(@nt_mu_lo + @nt_sigma_lo * :rand.uniform()) |> round()
     order = Exchange.sell_limit_order(venue, ticker, tid, price2, vol)
     cost = vol * price2
-
     {cost, [order]}
   end
 
   defp noise_trader_limit_order(:buy, venue, ticker, tid, bid_price, _ask_price, off_sprd_amnt) do
-    vol = :math.exp(@nt_mu_lo + @nt_sigma_lo * rand()) |> round()
-
+    vol = :math.exp(@nt_mu_lo + @nt_sigma_lo * :rand.uniform()) |> round()
     price = bid_price - off_sprd_amnt
     order = Exchange.buy_limit_order(venue, ticker, tid, price, vol)
-
     cost = vol * price
-
     {cost, [order]}
   end
 
   defp noise_trader_limit_order(:sell, venue, ticker, tid, _bid_price, ask_price, off_sprd_amnt) do
-    vol = :math.exp(@nt_mu_lo + @nt_sigma_lo * rand()) |> round()
-
+    vol = :math.exp(@nt_mu_lo + @nt_sigma_lo * :rand.uniform()) |> round()
     price = ask_price + off_sprd_amnt
     order = Exchange.sell_limit_order(venue, ticker, tid, price, vol)
-
     cost = vol * price
-
     {cost, [order]}
   end
 
   defp off_sprd_amnt(xmin, beta) do
-    u = :rand.uniform()
-
     pow = 1 / (beta - 1) * -1
-    num = 1 - u
-
+    num = 1 - :rand.uniform()
     xmin * :math.pow(num, pow)
   end
 
   defp order_side do
-    if rand() < 0.5 do
+    if :rand.uniform() < 0.5 do
       :buy
     else
       :sell
@@ -363,9 +310,5 @@ defmodule APXR.NoiseTrader do
       cash: 20_000_000.0,
       outstanding_orders: []
     }
-  end
-
-  defp rand() do
-    :rand.uniform()
   end
 end

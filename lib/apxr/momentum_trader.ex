@@ -53,7 +53,6 @@ defmodule APXR.MomentumTrader do
 
   @impl true
   def init(id) do
-    :rand.seed(:exsplus, :os.timestamp())
     trader = init_trader(id)
     {:ok, %{trader: trader}}
   end
@@ -85,7 +84,6 @@ defmodule APXR.MomentumTrader do
        when lag_p == nil do
     venue = :apxr
     ticker = :apxr
-
     p = Exchange.last_price(venue, ticker)
     momentum_trader(venue, ticker, tid, p, p, cash, 0, trader)
   end
@@ -95,7 +93,6 @@ defmodule APXR.MomentumTrader do
        }) do
     venue = :apxr
     ticker = :apxr
-
     p = Exchange.last_price(venue, ticker)
     momentum_trader(venue, ticker, tid, p, p1, cash, counter, trader)
   end
@@ -104,7 +101,7 @@ defmodule APXR.MomentumTrader do
     roc = rate_of_change(p, p1)
     vol = round(abs(roc) * cash)
 
-    if rand() < @mt_delta do
+    if :rand.uniform() < @mt_delta do
       cost = momentum_trader_place_order(venue, ticker, tid, vol, roc)
       cash = max(cash - cost, 0.0) |> Float.round(2)
 
@@ -159,9 +156,5 @@ defmodule APXR.MomentumTrader do
       cash: 20_000_000.0,
       outstanding_orders: []
     }
-  end
-
-  defp rand() do
-    :rand.uniform()
   end
 end

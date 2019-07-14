@@ -52,7 +52,6 @@ defmodule APXR.LiquidityConsumer do
 
   @impl true
   def init(id) do
-    :rand.seed(:exsplus, :os.timestamp())
     trader = init_trader(id)
     {:ok, %{trader: trader}}
   end
@@ -92,10 +91,9 @@ defmodule APXR.LiquidityConsumer do
 
     current_vol_avbl = vol_avbl_opp_best_price(venue, ticker, side)
 
-    if rand() < @lc_delta do
+    if :rand.uniform() < @lc_delta do
       cost = liquidity_consumer_place_order(venue, ticker, tid, vol, current_vol_avbl, side)
       cash = max(cash - cost, 0.0) |> Float.round(2)
-
       trader = %{trader | cash: cash}
       update_vol_to_fill(vol, current_vol_avbl, trader)
     else
@@ -138,7 +136,7 @@ defmodule APXR.LiquidityConsumer do
   end
 
   defp order_side do
-    if rand() < 0.5 do
+    if :rand.uniform() < 0.5 do
       :buy
     else
       :sell
@@ -162,9 +160,5 @@ defmodule APXR.LiquidityConsumer do
       side: order_side(),
       vol_to_fill: :rand.uniform(@lc_max_vol)
     }
-  end
-
-  defp rand() do
-    :rand.uniform()
   end
 end

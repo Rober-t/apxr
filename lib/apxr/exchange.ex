@@ -163,7 +163,7 @@ defmodule APXR.Exchange do
 
   @doc ~S"""
   Level 2 market data.
-  Returns (up to) the highest 10 prices where traders are willing to buy an asset,
+  Returns (up to) the highest 15 prices where traders are willing to buy an asset,
   and have placed an order to do so.
 
   ## Examples
@@ -179,7 +179,7 @@ defmodule APXR.Exchange do
   @doc ~S"""
   Level 2 market data.
   Returns the volume that people are trying to buy at each of the
-  highest (up to) 10 prices where traders are willing to buy an asset,
+  highest (up to) 15 prices where traders are willing to buy an asset,
   and have placed an order to do so.
 
   ## Examples
@@ -194,7 +194,7 @@ defmodule APXR.Exchange do
 
   @doc ~S"""
   Level 2 market data.
-  Returns (up to) the lowest 10 prices where traders are willing to sell an asset,
+  Returns (up to) the lowest 15 prices where traders are willing to sell an asset,
   and have placed an order to do so.
 
   ## Examples
@@ -210,7 +210,7 @@ defmodule APXR.Exchange do
   @doc ~S"""
   Level 2 market data.
   Returns the volume that people are trying to sell at each of the
-  lowest (up to) 10 prices where traders are willing to sell an asset,
+  lowest (up to) 15 prices where traders are willing to sell an asset,
   and have placed an order to do so.
 
   ## Examples
@@ -423,7 +423,6 @@ defmodule APXR.Exchange do
   defp do_mid_price(bid_book, ask_book) do
     bid_price = do_bid_price(bid_book)
     ask_price = do_ask_price(ask_book)
-
     ((bid_price + ask_price) / 2.0) |> Float.round(2)
   end
 
@@ -466,12 +465,12 @@ defmodule APXR.Exchange do
   end
 
   defp do_highest_bid_prices(bid_book) do
-    bid_book_list = :gb_trees.to_list(bid_book) |> Enum.reverse() |> Enum.slice(0, 10)
+    bid_book_list = :gb_trees.to_list(bid_book) |> Enum.reverse() |> Enum.slice(0, 15)
     for {price, _bid_tree} <- bid_book_list, do: price
   end
 
   defp do_highest_bid_sizes(bid_book) do
-    bid_book_list = :gb_trees.to_list(bid_book) |> Enum.reverse() |> Enum.slice(0, 10)
+    bid_book_list = :gb_trees.to_list(bid_book) |> Enum.reverse() |> Enum.slice(0, 15)
     bid_tree_list = for {_price, bid_tree} <- bid_book_list, do: bid_tree
 
     for bid_tree <- bid_tree_list do
@@ -481,12 +480,12 @@ defmodule APXR.Exchange do
   end
 
   defp do_lowest_ask_prices(ask_book) do
-    ask_book_list = :gb_trees.to_list(ask_book) |> Enum.slice(0, 10)
+    ask_book_list = :gb_trees.to_list(ask_book) |> Enum.slice(0, 15)
     for {price, _ask_tree} <- ask_book_list, do: price
   end
 
   defp do_lowest_ask_sizes(ask_book) do
-    ask_book_list = :gb_trees.to_list(ask_book) |> Enum.slice(0, 10)
+    ask_book_list = :gb_trees.to_list(ask_book) |> Enum.slice(0, 15)
     ask_tree_list = for {_price, ask_tree} <- ask_book_list, do: ask_tree
 
     for ask_tree <- ask_tree_list do
@@ -708,7 +707,6 @@ defmodule APXR.Exchange do
        when matched_vol == order_vol do
     {_key, popped_order, ask_tree} = :gb_trees.take_smallest(ask_tree)
     state = update_ask_book(ask_tree, ask_min, state)
-
     post_process_buy_order_match(order, popped_order)
 
     if order_type == :market_order do
@@ -739,7 +737,6 @@ defmodule APXR.Exchange do
        when matched_vol < order_vol do
     {_key, _popped_order, ask_tree} = :gb_trees.take_smallest(ask_tree)
     state = update_ask_book(ask_tree, ask_min, state)
-
     post_process_buy_order_match(order, matched_order)
 
     if order_type == :market_order do
@@ -755,7 +752,6 @@ defmodule APXR.Exchange do
 
     order = %{order | volume: order_vol - matched_vol}
     state = %{state | last_price: ask_min, last_size: matched_vol}
-
     price_time_match(order, state, order_type)
   end
 
@@ -773,7 +769,6 @@ defmodule APXR.Exchange do
     {_key, popped_order, ask_tree} = :gb_trees.take_smallest(ask_tree)
     popped_order = %{popped_order | volume: matched_vol - order_vol}
     ask_tree = :gb_trees.enter(popped_order.order_id, popped_order, ask_tree)
-
     post_process_buy_order_match(order, matched_order)
 
     if order_type == :market_order do
@@ -788,7 +783,6 @@ defmodule APXR.Exchange do
     end
 
     ask_book = :gb_trees.enter(ask_min, ask_tree, ask_book)
-
     state = %{state | last_price: ask_min, last_size: order_vol, ask_book: ask_book}
     {state, order}
   end
@@ -806,7 +800,6 @@ defmodule APXR.Exchange do
        when matched_vol == order_vol do
     {_key, popped_order, bid_tree} = :gb_trees.take_smallest(bid_tree)
     state = update_bid_book(bid_tree, bid_max, state)
-
     post_process_sell_order_match(order, popped_order)
 
     if order_type == :market_order do
@@ -837,7 +830,6 @@ defmodule APXR.Exchange do
        when matched_vol < order_vol do
     {_key, _popped_order, bid_tree} = :gb_trees.take_smallest(bid_tree)
     state = update_bid_book(bid_tree, bid_max, state)
-
     post_process_sell_order_match(order, matched_order)
 
     if order_type == :market_order do
@@ -853,7 +845,6 @@ defmodule APXR.Exchange do
 
     order = %{order | volume: order_vol - matched_vol}
     state = %{state | last_price: bid_max, last_size: matched_vol}
-
     price_time_match(order, state, order_type)
   end
 
@@ -871,7 +862,6 @@ defmodule APXR.Exchange do
     {_key, popped_order, bid_tree} = :gb_trees.take_smallest(bid_tree)
     popped_order = %{popped_order | volume: matched_vol - order_vol}
     bid_tree = :gb_trees.enter(popped_order.order_id, popped_order, bid_tree)
-
     post_process_sell_order_match(order, matched_order)
 
     if order_type == :market_order do
@@ -886,7 +876,6 @@ defmodule APXR.Exchange do
     end
 
     bid_book = :gb_trees.enter(bid_max, bid_tree, bid_book)
-
     state = %{state | last_price: bid_max, last_size: order_vol, bid_book: bid_book}
     {state, order}
   end
@@ -898,7 +887,6 @@ defmodule APXR.Exchange do
        when vol < matched_vol do
     t1.execution_report({t1, tid1}, order1, :full_fill_buy_order)
     t2.execution_report({t2, tid2}, order2, :partial_fill_buy_order)
-
     log_orderbook_event(order1, vol, price, :full_fill_buy_order, true)
   end
 
@@ -909,7 +897,6 @@ defmodule APXR.Exchange do
        when vol == matched_vol do
     t1.execution_report({t1, tid1}, order1, :full_fill_buy_order)
     t2.execution_report({t2, tid2}, order2, :full_fill_buy_order)
-
     log_orderbook_event(order1, vol, price, :full_fill_buy_order, true)
   end
 
@@ -920,7 +907,6 @@ defmodule APXR.Exchange do
        when vol > matched_vol do
     t1.execution_report({t1, tid1}, order1, :partial_fill_buy_order)
     t2.execution_report({t2, tid2}, order2, :full_fill_buy_order)
-
     log_orderbook_event(order1, matched_vol, price, :partial_fill_buy_order, true)
   end
 
@@ -931,7 +917,6 @@ defmodule APXR.Exchange do
        when vol < matched_vol do
     t1.execution_report({t1, tid1}, order1, :full_fill_sell_order)
     t2.execution_report({t2, tid2}, order2, :full_fill_sell_order)
-
     log_orderbook_event(order1, vol, price, :full_fill_sell_order, true)
   end
 
@@ -942,7 +927,6 @@ defmodule APXR.Exchange do
        when vol == matched_vol do
     t1.execution_report({t1, tid1}, order1, :full_fill_sell_order)
     t2.execution_report({t2, tid2}, order2, :full_fill_sell_order)
-
     log_orderbook_event(order1, vol, price, :full_fill_sell_order, true)
   end
 
@@ -953,7 +937,6 @@ defmodule APXR.Exchange do
        when vol > matched_vol do
     t1.execution_report({t1, tid1}, order1, :partial_fill_sell_order)
     t2.execution_report({t2, tid2}, order2, :full_fill_sell_order)
-
     log_orderbook_event(order1, matched_vol, price, :partial_fill_sell_order, true)
   end
 
@@ -962,11 +945,7 @@ defmodule APXR.Exchange do
   end
 
   defp log_orderbook_event(
-         %Order{
-           order_id: order_id,
-           trader_id: tid,
-           side: direction
-         },
+         %Order{order_id: order_id, trader_id: tid, side: direction},
          size,
          price,
          type,
@@ -1014,7 +993,6 @@ defmodule APXR.Exchange do
        ) do
     tree = bid_tree(price, bid_book) |> tree_insert_order(order_id, order)
     bid_book = :gb_trees.enter(price, tree, bid_book)
-
     %{state | bid_book: bid_book}
   end
 
@@ -1024,7 +1002,6 @@ defmodule APXR.Exchange do
        ) do
     tree = ask_tree(price, ask_book) |> tree_insert_order(order_id, order)
     ask_book = :gb_trees.enter(price, tree, ask_book)
-
     %{state | ask_book: ask_book}
   end
 

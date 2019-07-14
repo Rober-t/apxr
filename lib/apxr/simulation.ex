@@ -10,7 +10,7 @@ defmodule APXR.Simulation do
     RunSupervisor
   }
 
-  @total_runs 10
+  @total_runs 1
 
   ## Client API
 
@@ -82,7 +82,8 @@ defmodule APXR.Simulation do
         System.stop(0)
 
       _ ->
-        Process.whereis(RunSupervisor) |> Process.exit(:shutdown)
+        Process.whereis(RunSupervisor) |> Process.exit(:kill)
+        Process.sleep(30000)
         IO.puts("\nRUN #{run_number - 1} ENDED")
         Market.open(run_number)
     end

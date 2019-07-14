@@ -6,15 +6,19 @@ defmodule APXR.RunSupervisor do
 
   use Supervisor
 
-  @init_price 100.0
+  alias APXR.{
+    Simulation
+  }
+
+  @init_price 100
   @init_vol 1
 
   # How many of each type of trader to initialize
-  @liquidity_consumers 10
-  @market_makers 10
-  @mean_reversion_traders 40
-  @momentum_traders 40
-  @noise_traders 75
+  @liquidity_consumers 1
+  @market_makers 1
+  @mean_reversion_traders 10
+  @momentum_traders 10
+  @noise_traders 10
   @my_traders 1
 
   def start_link(opts) do

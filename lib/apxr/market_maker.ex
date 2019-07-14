@@ -58,7 +58,6 @@ defmodule APXR.MarketMaker do
 
   @impl true
   def init(id) do
-    :rand.seed(:exsplus, :os.timestamp())
     {:ok, _} = Registry.register(APXR.ReportingServiceRegistry, "orderbook_event", [])
     trader = init_trader(id)
     init_side = Enum.random(0..1)
@@ -102,61 +101,49 @@ defmodule APXR.MarketMaker do
 
   defp update_outstanding_orders(
          %Order{order_id: order_id},
-         %{trader: %Trader{outstanding_orders: outstanding_orders} = trader} = state,
+         %{trader: %Trader{outstanding_orders: outstanding} = trader} = state,
          msg
        )
        when msg in [:full_fill_buy_order, :full_fill_sell_order] do
-    outstanding_orders =
-      Enum.reject(outstanding_orders, fn %Order{order_id: id} -> id == order_id end)
-
-    trader = %{trader | outstanding_orders: outstanding_orders}
+    outstanding = Enum.reject(outstanding, fn %Order{order_id: id} -> id == order_id end)
+    trader = %{trader | outstanding_orders: outstanding}
     %{state | trader: trader}
   end
 
   defp update_outstanding_orders(
          %Order{order_id: order_id} = order,
-         %{trader: %Trader{outstanding_orders: outstanding_orders} = trader} = state,
+         %{trader: %Trader{outstanding_orders: outstanding} = trader} = state,
          msg
        )
        when msg in [:partial_fill_buy_order, :partial_fill_sell_order] do
-    outstanding_orders =
-      Enum.reject(outstanding_orders, fn %Order{order_id: id} -> id == order_id end)
-
-    trader = %{trader | outstanding_orders: [order | outstanding_orders]}
+    outstanding = Enum.reject(outstanding, fn %Order{order_id: id} -> id == order_id end)
+    trader = %{trader | outstanding_orders: [order | outstanding]}
     %{state | trader: trader}
   end
 
   defp update_outstanding_orders(
          %Order{order_id: order_id},
-         %{trader: %Trader{outstanding_orders: outstanding_orders} = trader} = state,
+         %{trader: %Trader{outstanding_orders: outstanding} = trader} = state,
          :cancelled_order
        ) do
-    outstanding_orders =
-      Enum.reject(outstanding_orders, fn %Order{order_id: id} -> id == order_id end)
-
-    trader = %{trader | outstanding_orders: outstanding_orders}
+    outstanding = Enum.reject(outstanding, fn %Order{order_id: id} -> id == order_id end)
+    trader = %{trader | outstanding_orders: outstanding}
     %{state | trader: trader}
   end
 
   defp market_maker(%{
          order_side_history: order_side_history,
-         trader:
-           %Trader{trader_id: tid, cash: cash, outstanding_orders: outstanding_orders} = trader
+         trader: %Trader{trader_id: tid, cash: cash, outstanding_orders: outstanding} = trader
        }) do
     venue = :apxr
     ticker = :apxr
-
-    bid_price = Exchange.bid_price(venue, ticker)
-    ask_price = Exchange.ask_price(venue, ticker)
-
+    bid = Exchange.bid_price(venue, ticker)
+    ask = Exchange.ask_price(venue, ticker)
     prediction = simple_moving_avg(order_side_history)
 
-    if rand() < @mm_delta do
-      for order <- outstanding_orders, do: Exchange.cancel_order(venue, ticker, order)
-
-      {cost, orders} =
-        market_maker_place_order(venue, ticker, tid, ask_price, bid_price, prediction)
-
+    if :rand.uniform() < @mm_delta do
+      for order <- outstanding, do: Exchange.cancel_order(venue, ticker, order)
+      {cost, orders} = market_maker_place_order(venue, ticker, tid, ask, bid, prediction)
       cash = max(cash - cost, 0.0) |> Float.round(2)
       %{trader | cash: cash, outstanding_orders: orders}
     else
@@ -174,25 +161,19 @@ defmodule APXR.MarketMaker do
 
   defp market_maker_place_order(venue, ticker, tid, ask_price, bid_price, _prediction, :lt) do
     vol = :rand.uniform(@mm_max_vol)
-
     order1 = Exchange.sell_limit_order(venue, ticker, tid, ask_price, vol)
     order2 = Exchange.buy_limit_order(venue, ticker, tid, bid_price, @mm_vol)
-
     orders = Enum.reject([order1, order2], fn order -> order == :rejected end)
     cost = ask_price * vol + bid_price * @mm_vol
-
     {cost, orders}
   end
 
   defp market_maker_place_order(venue, ticker, tid, ask_price, bid_price, _prediction, :gt) do
     vol = :rand.uniform(@mm_max_vol)
-
     order1 = Exchange.buy_limit_order(venue, ticker, tid, bid_price, vol)
     order2 = Exchange.sell_limit_order(venue, ticker, tid, ask_price, @mm_vol)
-
     orders = Enum.reject([order1, order2], fn order -> order == :rejected end)
     cost = ask_price * @mm_vol + bid_price * vol
-
     {cost, orders}
   end
 
@@ -205,14 +186,16 @@ defmodule APXR.MarketMaker do
          %OrderbookEvent{direction: side},
          %{order_side_history: order_side_history} = state
        ) do
-    order_side_history =
-      if length(order_side_history) < @mm_w do
-        [side | order_side_history]
-      else
-        [side | Enum.drop(order_side_history, -1)]
-      end
-
+    order_side_history = order_side_history(side, order_side_history)
     %{state | order_side_history: order_side_history}
+  end
+
+  defp order_side_history(side, order_side_history) do
+    if length(order_side_history) < @mm_w do
+      [side | order_side_history]
+    else
+      [side | Enum.drop(order_side_history, -1)]
+    end
   end
 
   defp init_trader(id) do
@@ -222,9 +205,5 @@ defmodule APXR.MarketMaker do
       cash: 20_000_000.0,
       outstanding_orders: []
     }
-  end
-
-  defp rand() do
-    :rand.uniform()
   end
 end

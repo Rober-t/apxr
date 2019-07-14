@@ -100,18 +100,16 @@ Configuration is placed as close as possible to where it is used and not via the
 --------------------
 ### Outputs
 
-The program outputs three CSV files:
+The program outputs four CSV files:
 - `apxr_mid_prices`
-  - The mid-price for each iteration.
-- `apxr_price_impact`
-  - For each market order that is matched it outputs the order_id, before_price, after_price and volume.
-- `apxr_event_log`
-  - A time ordered log of orderbook and matching engine events. The default is not to output everything.
+- `apxr_trades`
+- `apxr_order_sides`
+- `apxr_price_impacts` 
 
 --------------------
 ### Validation
 
-The data can be validated with the attached Juypter notebook. It is configured to import the data from the above files. The model is able to reproduce a number of stylized market properties including: clustered volatility, autocorrelation of returns, long memory in order flow, concave price impact and the presence of extreme price events.
+The data can be validated with the attached Juypter notebook 'validate.ipynb'. It requires Python 3 to be installed. The notebook is configured to import the data from the above files. The model is able to reproduce a number of stylized market properties including: clustered volatility, autocorrelation of returns, long memory in order flow, concave price impact and the presence of extreme price events.
 
 --------------------
 ### Development
