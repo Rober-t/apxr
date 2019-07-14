@@ -27,8 +27,9 @@ Upon being chosen to act, if an agent wishes to submit an order, it will communi
 --------------------
 ### Requirements
 
-  - [Erlang/OTP 22](https://github.com/erlang)
+  - [Erlang](https://github.com/erlang)
   - [Elixir](https://elixir-lang.org/)
+  - [Python](https://www.python.org/downloads/)
 
 --------------------
 ### Installation
@@ -109,7 +110,7 @@ The program outputs four CSV files:
 --------------------
 ### Validation
 
-The data can be validated with the attached Juypter notebook 'validate.ipynb'. It requires Python 3 to be installed. The notebook is configured to import the data from the above files. The model is able to reproduce a number of stylized market properties including: clustered volatility, autocorrelation of returns, long memory in order flow, concave price impact and the presence of extreme price events.
+The data can be validated with the attached Juypter notebook `validate.ipynb`. It requires Python 3 to be installed. The notebook is configured to import the data from the above files. The model is able to reproduce a number of stylized market properties including: clustered volatility, autocorrelation of returns, long memory in order flow, concave price impact and the presence of extreme price events.
 
 --------------------
 ### Development
