@@ -52,8 +52,8 @@ defmodule APXR.MyTrader do
 
   @impl true
   def handle_call({:actuate}, _from, state) do
-    trader = my_trader(state)
-    {:reply, :ok, %{state | trader: trader}}
+    state = action(state)
+    {:reply, :ok, state}
   end
 
   @impl true
@@ -111,9 +111,9 @@ defmodule APXR.MyTrader do
     %{state | trader: trader}
   end
 
-  defp my_trader(%{trader: %Trader{} = trader} = _state) do
+  defp action(%{trader: %Trader{} = _trader} = state) do
     # Your logic goes here...
-    trader
+    state
   end
 
   defp init_trader(id) do

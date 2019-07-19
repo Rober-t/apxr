@@ -15,26 +15,13 @@ defmodule APXR.Trader do
   defstruct trader_id: nil,
             type: nil,
             cash: nil,
-            outstanding_orders: nil,
-            side: nil,
-            lag_price: nil,
-            n: nil,
-            m: nil,
-            s: nil,
-            ema_prev: nil,
-            vol_to_fill: nil
+            outstanding_orders: nil
 
   @type t() :: %__MODULE__{
           trader_id: tuple(),
           type: atom(),
           cash: non_neg_integer() | nil,
-          outstanding_orders: list() | nil,
-          side: non_neg_integer() | nil,
-          n: float() | nil,
-          m: float() | nil,
-          s: float() | nil,
-          ema_prev: float() | nil,
-          vol_to_fill: float() | nil
+          outstanding_orders: list() | nil
         }
 
   @callback actuate(id :: integer()) :: :ok

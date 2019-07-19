@@ -76,8 +76,8 @@ defmodule APXR.NoiseTrader do
 
   @impl true
   def handle_call({:actuate}, _from, state) do
-    trader = noise_trader(state)
-    {:reply, :ok, %{state | trader: trader}}
+    state = action(state)
+    {:reply, :ok, state}
   end
 
   @impl true
@@ -129,9 +129,10 @@ defmodule APXR.NoiseTrader do
     %{state | trader: trader}
   end
 
-  defp noise_trader(%{
-         trader: %Trader{trader_id: tid, cash: cash, outstanding_orders: outstanding} = trader
-       }) do
+  defp action(
+         %{trader: %Trader{trader_id: tid, cash: cash, outstanding_orders: outstanding} = trader} =
+           state
+       ) do
     venue = :apxr
     ticker = :apxr
     type = order_side()
@@ -145,59 +146,53 @@ defmodule APXR.NoiseTrader do
     if :rand.uniform() < @nt_delta do
       case :rand.uniform() do
         action when action < @nt_m ->
-          cost = noise_trader_market_order(venue, ticker, type, tid)
+          cost = market_order(venue, ticker, type, tid)
           cash = max(cash - cost, 0.0) |> Float.round(2)
-          %{trader | cash: cash}
+          trader = %{trader | cash: cash}
+          %{state | trader: trader}
 
         action when action < @nt_m + @nt_l ->
           {cost, orders} =
             case :rand.uniform() do
               lo when lo < @nt_crs ->
-                noise_trader_limit_order(type, venue, ticker, tid, ask_price, bid_price)
+                limit_order(type, venue, ticker, tid, ask_price, bid_price)
 
               lo when lo < @nt_crs + @nt_inspr ->
-                noise_trader_limit_order(type, venue, ticker, tid, in_spr_price, in_spr_price)
+                limit_order(type, venue, ticker, tid, in_spr_price, in_spr_price)
 
               lo when lo < @nt_crs + @nt_inspr + @nt_spr ->
-                noise_trader_limit_order(type, venue, ticker, tid, bid_price, ask_price)
+                limit_order(type, venue, ticker, tid, bid_price, ask_price)
 
               _ ->
-                noise_trader_limit_order(
-                  type,
-                  venue,
-                  ticker,
-                  tid,
-                  bid_price,
-                  ask_price,
-                  off_sprd_amnt
-                )
+                limit_order(type, venue, ticker, tid, bid_price, ask_price, off_sprd_amnt)
             end
 
           cash = max(cash - cost, 0.0) |> Float.round(2)
           orders = Enum.reject(orders, fn order -> order == :rejected end)
-          %{trader | cash: cash, outstanding_orders: outstanding ++ orders}
+          trader = %{trader | cash: cash, outstanding_orders: outstanding ++ orders}
+          %{state | trader: trader}
 
         _ ->
           outstanding = maybe_cancel_order(venue, ticker, outstanding)
-          %{trader | outstanding_orders: outstanding}
+          trader = %{trader | outstanding_orders: outstanding}
+          %{state | trader: trader}
       end
     else
-      trader
+      state
     end
   end
 
-  defp maybe_cancel_order(venue, ticker, outstanding_orders)
-       when is_list(outstanding_orders) and length(outstanding_orders) > 0 do
-    {orders, [order]} = Enum.split(outstanding_orders, -1)
+  defp maybe_cancel_order(venue, ticker, orders) when is_list(orders) and length(orders) > 0 do
+    {orders, [order]} = Enum.split(orders, -1)
     Exchange.cancel_order(venue, ticker, order)
     orders
   end
 
-  defp maybe_cancel_order(_venue, _ticker, outstanding_orders) do
-    outstanding_orders
+  defp maybe_cancel_order(_venue, _ticker, orders) do
+    orders
   end
 
-  defp noise_trader_market_order(venue, ticker, :buy, tid) do
+  defp market_order(venue, ticker, :buy, tid) do
     vol =
       min(
         Enum.sum(Exchange.lowest_ask_prices(venue, ticker)),
@@ -208,7 +203,7 @@ defmodule APXR.NoiseTrader do
     vol * Exchange.ask_price(venue, ticker)
   end
 
-  defp noise_trader_market_order(venue, ticker, :sell, tid) do
+  defp market_order(venue, ticker, :sell, tid) do
     vol =
       min(
         Enum.sum(Exchange.highest_bid_prices(venue, ticker)),
@@ -219,21 +214,21 @@ defmodule APXR.NoiseTrader do
     vol * Exchange.bid_price(venue, ticker)
   end
 
-  defp noise_trader_limit_order(:buy, venue, ticker, tid, price1, _price2) do
+  defp limit_order(:buy, venue, ticker, tid, price1, _price2) do
     vol = :math.exp(@nt_mu_lo + @nt_sigma_lo * :rand.uniform()) |> round()
     order = Exchange.buy_limit_order(venue, ticker, tid, price1, vol)
     cost = vol * price1
     {cost, [order]}
   end
 
-  defp noise_trader_limit_order(:sell, venue, ticker, tid, _price1, price2) do
+  defp limit_order(:sell, venue, ticker, tid, _price1, price2) do
     vol = :math.exp(@nt_mu_lo + @nt_sigma_lo * :rand.uniform()) |> round()
     order = Exchange.sell_limit_order(venue, ticker, tid, price2, vol)
     cost = vol * price2
     {cost, [order]}
   end
 
-  defp noise_trader_limit_order(:buy, venue, ticker, tid, bid_price, _ask_price, off_sprd_amnt) do
+  defp limit_order(:buy, venue, ticker, tid, bid_price, _ask_price, off_sprd_amnt) do
     vol = :math.exp(@nt_mu_lo + @nt_sigma_lo * :rand.uniform()) |> round()
     price = bid_price - off_sprd_amnt
     order = Exchange.buy_limit_order(venue, ticker, tid, price, vol)
@@ -241,7 +236,7 @@ defmodule APXR.NoiseTrader do
     {cost, [order]}
   end
 
-  defp noise_trader_limit_order(:sell, venue, ticker, tid, _bid_price, ask_price, off_sprd_amnt) do
+  defp limit_order(:sell, venue, ticker, tid, _bid_price, ask_price, off_sprd_amnt) do
     vol = :math.exp(@nt_mu_lo + @nt_sigma_lo * :rand.uniform()) |> round()
     price = ask_price + off_sprd_amnt
     order = Exchange.sell_limit_order(venue, ticker, tid, price, vol)
@@ -267,36 +262,14 @@ defmodule APXR.NoiseTrader do
     cond do
       Exchange.highest_bid_prices(venue, ticker) == [] and
           Exchange.lowest_ask_prices(venue, ticker) == [] ->
-        noise_trader_limit_order(:buy, venue, ticker, tid, @default_price, @default_price)
-
-        noise_trader_limit_order(
-          :sell,
-          venue,
-          ticker,
-          tid,
-          @default_price,
-          @default_price + @default_spread
-        )
+        limit_order(:buy, venue, ticker, tid, @default_price, @default_price)
+        limit_order(:sell, venue, ticker, tid, @default_price, @default_price + @default_spread)
 
       Exchange.highest_bid_prices(venue, ticker) == [] ->
-        noise_trader_limit_order(
-          :buy,
-          venue,
-          ticker,
-          tid,
-          ask_price - @default_spread,
-          @default_price
-        )
+        limit_order(:buy, venue, ticker, tid, ask_price - @default_spread, @default_price)
 
       Exchange.lowest_ask_prices(venue, ticker) == [] ->
-        noise_trader_limit_order(
-          :sell,
-          venue,
-          ticker,
-          tid,
-          @default_price,
-          bid_price + @default_spread
-        )
+        limit_order(:sell, venue, ticker, tid, @default_price, bid_price + @default_spread)
 
       true ->
         :ok

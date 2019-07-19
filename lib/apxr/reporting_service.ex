@@ -93,7 +93,7 @@ defmodule APXR.ReportingService do
 
   @impl true
   def handle_cast({:push_price_impact, _timestep, _id, _type, vol, before_p, after_p}, state) do
-    impact = :math.log(after_p) - :math.log(before_p)
+    impact = impact(before_p, after_p)
     write_csv_file([[vol, impact]], :price_impact, state)
     {:noreply, state}
   end
@@ -201,5 +201,11 @@ defmodule APXR.ReportingService do
 
   defp parse_event_data(_run_number, %OrderbookEvent{price: price}) do
     [[price]]
+  end
+
+  defp impact(before_p, after_p) do
+    before_p = max(before_p, 0.0001)
+    after_p = max(after_p, 0.0001)
+    :math.log(after_p) - :math.log(before_p)
   end
 end

@@ -53,13 +53,15 @@ defmodule APXR.LiquidityConsumer do
   @impl true
   def init(id) do
     trader = init_trader(id)
-    {:ok, %{trader: trader}}
+    side = order_side()
+    vol = :rand.uniform(@lc_max_vol)
+    {:ok, %{side: side, vol_to_fill: vol, trader: trader}}
   end
 
   @impl true
   def handle_call({:actuate}, _from, state) do
-    trader = liquidity_consumer(state)
-    {:reply, :ok, %{state | trader: trader}}
+    state = action(state)
+    {:reply, :ok, state}
   end
 
   @impl true
@@ -79,60 +81,56 @@ defmodule APXR.LiquidityConsumer do
     {:via, Registry, {APXR.TraderRegistry, id}}
   end
 
-  defp liquidity_consumer(%{trader: %Trader{vol_to_fill: 0} = trader}) do
-    trader
+  defp action(%{vol_to_fill: vol, trader: %Trader{}} = state) when vol <= 0 do
+    state
   end
 
-  defp liquidity_consumer(%{
-         trader: %Trader{trader_id: tid, cash: cash, side: side, vol_to_fill: vol} = trader
-       }) do
+  defp action(
+         %{side: side, vol_to_fill: vol, trader: %Trader{trader_id: tid, cash: cash} = trader} =
+           state
+       ) do
     venue = :apxr
     ticker = :apxr
 
-    current_vol_avbl = vol_avbl_opp_best_price(venue, ticker, side)
+    current_vol_avl = vol_avl_opp_best_price(venue, ticker, side)
 
     if :rand.uniform() < @lc_delta do
-      cost = liquidity_consumer_place_order(venue, ticker, tid, vol, current_vol_avbl, side)
+      cost = place_order(venue, ticker, tid, vol, current_vol_avl, side)
       cash = max(cash - cost, 0.0) |> Float.round(2)
       trader = %{trader | cash: cash}
-      update_vol_to_fill(vol, current_vol_avbl, trader)
+      state = update_vol_to_fill(vol, current_vol_avl, state)
+      %{state | trader: trader}
     else
-      update_vol_to_fill(vol, current_vol_avbl, trader)
+      update_vol_to_fill(vol, current_vol_avl, state)
     end
   end
 
-  defp liquidity_consumer_place_order(venue, ticker, tid, vol, current_vol_avbl, :buy)
-       when vol <= current_vol_avbl do
+  defp place_order(venue, ticker, tid, vol, vol_avl, :buy) when vol <= vol_avl do
     cost = Exchange.ask_price(venue, ticker) * vol
     Exchange.buy_market_order(venue, ticker, tid, vol)
     cost
   end
 
-  defp liquidity_consumer_place_order(venue, ticker, tid, _vol, current_vol_avbl, :buy) do
-    cost = Exchange.ask_price(venue, ticker) * current_vol_avbl
-    Exchange.buy_market_order(venue, ticker, tid, current_vol_avbl)
+  defp place_order(venue, ticker, tid, _vol, vol_avl, :buy) do
+    cost = Exchange.ask_price(venue, ticker) * vol_avl
+    Exchange.buy_market_order(venue, ticker, tid, vol_avl)
     cost
   end
 
-  defp liquidity_consumer_place_order(venue, ticker, tid, vol, current_vol_avbl, :sell)
-       when vol <= current_vol_avbl do
+  defp place_order(venue, ticker, tid, vol, vol_avl, :sell) when vol <= vol_avl do
     cost = Exchange.bid_price(venue, ticker) * vol
     Exchange.sell_market_order(venue, ticker, tid, vol)
     cost
   end
 
-  defp liquidity_consumer_place_order(venue, ticker, tid, _vol, current_vol_avbl, :sell) do
-    cost = Exchange.bid_price(venue, ticker) * current_vol_avbl
-    Exchange.sell_market_order(venue, ticker, tid, current_vol_avbl)
+  defp place_order(venue, ticker, tid, _vol, vol_avl, :sell) do
+    cost = Exchange.bid_price(venue, ticker) * vol_avl
+    Exchange.sell_market_order(venue, ticker, tid, vol_avl)
     cost
   end
 
-  defp update_vol_to_fill(vol, vol_avbl, trader) when vol <= vol_avbl do
-    %{trader | vol_to_fill: 0}
-  end
-
-  defp update_vol_to_fill(vol, vol_avbl, trader) do
-    %{trader | vol_to_fill: vol - vol_avbl}
+  defp update_vol_to_fill(vol, vol_avl, state) do
+    %{state | vol_to_fill: vol - vol_avl}
   end
 
   defp order_side do
@@ -143,11 +141,11 @@ defmodule APXR.LiquidityConsumer do
     end
   end
 
-  defp vol_avbl_opp_best_price(venue, ticker, :buy) do
+  defp vol_avl_opp_best_price(venue, ticker, :buy) do
     Exchange.ask_size(venue, ticker)
   end
 
-  defp vol_avbl_opp_best_price(venue, ticker, :sell) do
+  defp vol_avl_opp_best_price(venue, ticker, :sell) do
     Exchange.bid_size(venue, ticker)
   end
 
@@ -156,9 +154,7 @@ defmodule APXR.LiquidityConsumer do
       trader_id: {__MODULE__, id},
       type: :liquidity_consumer,
       cash: 20_000_000.0,
-      outstanding_orders: [],
-      side: order_side(),
-      vol_to_fill: :rand.uniform(@lc_max_vol)
+      outstanding_orders: []
     }
   end
 end

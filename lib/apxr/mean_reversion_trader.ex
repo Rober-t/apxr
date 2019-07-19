@@ -14,6 +14,7 @@ defmodule APXR.MeanReversionTrader do
 
   alias APXR.{
     Exchange,
+    OrderbookEvent,
     Trader
   }
 
@@ -21,7 +22,7 @@ defmodule APXR.MeanReversionTrader do
 
   @mrt_delta 0.4
   @mrt_vol 1
-  @mrt_k 2
+  @mrt_k 3
   @mrt_a 0.94
 
   ## Client API
@@ -56,14 +57,31 @@ defmodule APXR.MeanReversionTrader do
 
   @impl true
   def init(id) do
+    {:ok, _} = Registry.register(APXR.ReportingServiceRegistry, "orderbook_event", [])
     trader = init_trader(id)
-    {:ok, %{trader: trader}}
+    last_price = Exchange.last_price(:apxr, :apxr)
+    {:ok, %{n: 0, std_dev: 0.0, ema: last_price, trader: trader}}
   end
 
   @impl true
   def handle_call({:actuate}, _from, state) do
-    trader = mean_reversion_trader(state)
-    {:reply, :ok, %{state | trader: trader}}
+    state = action(state)
+    {:reply, :ok, state}
+  end
+
+  @impl true
+  def handle_cast(
+        {:broadcast, %OrderbookEvent{price: price, transaction: true, type: type}},
+        state
+      )
+      when type in [
+             :full_fill_buy_order,
+             :full_fill_sell_order,
+             :partial_fill_buy_order,
+             :partial_fill_sell_order
+           ] do
+    state = update_stats(price, state)
+    {:noreply, state}
   end
 
   @impl true
@@ -83,29 +101,27 @@ defmodule APXR.MeanReversionTrader do
     {:via, Registry, {APXR.TraderRegistry, id}}
   end
 
-  defp mean_reversion_trader(%{
-         trader:
-           %Trader{trader_id: tid, cash: cash, n: n, m: m, s: s, ema_prev: ema_prev} = trader
-       }) do
+  defp action(
+         %{ema: ema, std_dev: std_dev, trader: %Trader{trader_id: tid, cash: cash} = trader} =
+           state
+       ) do
     venue = :apxr
     ticker = :apxr
     bid_price = Exchange.bid_price(venue, ticker)
     ask_price = Exchange.ask_price(venue, ticker)
-    x = p = Exchange.last_price(venue, ticker)
-    ema = ema_prev + @mrt_a * (p - ema_prev)
-    {n1, m1, s1} = running_stat(n, x, m, s)
-    std_dev = std_dev(n, s)
+    price = Exchange.last_price(venue, ticker)
 
     if :rand.uniform() < @mrt_delta do
-      cost = mean_reversion_place_order(venue, ticker, tid, ask_price, bid_price, p, ema, std_dev)
+      cost = place_order(venue, ticker, tid, ask_price, bid_price, price, ema, std_dev)
       cash = max(cash - cost, 0.0) |> Float.round(2)
-      %{trader | cash: cash, n: n1, m: m1, s: s1, ema_prev: ema}
+      trader = %{trader | cash: cash}
+      %{state | trader: trader}
     else
-      %{trader | n: n1, m: m1, s: s1, ema_prev: ema}
+      state
     end
   end
 
-  defp mean_reversion_place_order(venue, ticker, tid, ask_price, bid_price, p, ema, std_dev) do
+  defp place_order(venue, ticker, tid, ask_price, bid_price, p, ema, std_dev) do
     cond do
       p - ema >= @mrt_k * std_dev ->
         price = ask_price - @tick_size
@@ -120,6 +136,13 @@ defmodule APXR.MeanReversionTrader do
       true ->
         0.0
     end
+  end
+
+  defp update_stats(price, %{n: n, m: m, s: s, ema: ema} = state) do
+    {n1, m1, s1} = running_stat(n, price, m, s)
+    std_dev = std_dev(n, s)
+    ema = ema + @mrt_a * (price - ema)
+    %{state | n: n1, m: m1, s: s1, std_dev: std_dev, ema: ema}
   end
 
   defp running_stat(n, x, prev_m, prev_s) do
@@ -147,15 +170,11 @@ defmodule APXR.MeanReversionTrader do
   end
 
   defp init_trader(id) do
-    last_price = Exchange.last_price(:apxr, :apxr)
-
     %Trader{
       trader_id: {__MODULE__, id},
       type: :mean_reversion_trader,
       cash: 20_000_000.0,
-      outstanding_orders: [],
-      n: 0,
-      ema_prev: last_price
+      outstanding_orders: []
     }
   end
 end

@@ -6,19 +6,15 @@ defmodule APXR.RunSupervisor do
 
   use Supervisor
 
-  alias APXR.{
-    Simulation
-  }
-
   @init_price 100
   @init_vol 1
 
   # How many of each type of trader to initialize
-  @liquidity_consumers 1
-  @market_makers 1
-  @mean_reversion_traders 10
-  @momentum_traders 10
-  @noise_traders 10
+  @liquidity_consumers 5
+  @market_makers 5
+  @mean_reversion_traders 20
+  @momentum_traders 20
+  @noise_traders 40
   @my_traders 1
 
   def start_link(opts) do
@@ -26,6 +22,7 @@ defmodule APXR.RunSupervisor do
   end
 
   @impl true
+  @spec init(any()) :: no_return()
   def init(_) do
     # List all child processes to be supervised
     children = [

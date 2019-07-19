@@ -423,7 +423,7 @@ defmodule APXR.Exchange do
   defp do_mid_price(bid_book, ask_book) do
     bid_price = do_bid_price(bid_book)
     ask_price = do_ask_price(ask_book)
-    ((bid_price + ask_price) / 2.0) |> Float.round(2)
+    ((bid_price + ask_price) / 2.0) |> Float.round(4)
   end
 
   defp do_bid_price(bid_book) do
@@ -699,14 +699,17 @@ defmodule APXR.Exchange do
          _matched_order,
          order_vol,
          ask_tree,
-         %{ask_book: ask_book} = state,
+         %{bid_book: bid_book, ask_book: ask_book} = state,
          ask_min,
          order,
          order_type
        )
        when matched_vol == order_vol do
     {_key, popped_order, ask_tree} = :gb_trees.take_smallest(ask_tree)
+    mid_price_before = do_mid_price(bid_book, ask_book)
     state = update_ask_book(ask_tree, ask_min, state)
+    %{bid_book: bid_book, ask_book: ask_book} = state
+    mid_price_after = do_mid_price(bid_book, ask_book)
     post_process_buy_order_match(order, popped_order)
 
     if order_type == :market_order do
@@ -715,8 +718,8 @@ defmodule APXR.Exchange do
         order.order_id,
         :market_order,
         order_vol,
-        ask_min,
-        do_ask_price(ask_book)
+        mid_price_before,
+        mid_price_after
       )
     end
 
@@ -729,14 +732,17 @@ defmodule APXR.Exchange do
          matched_order,
          order_vol,
          ask_tree,
-         %{ask_book: ask_book} = state,
+         %{bid_book: bid_book, ask_book: ask_book} = state,
          ask_min,
          order,
          order_type
        )
        when matched_vol < order_vol do
     {_key, _popped_order, ask_tree} = :gb_trees.take_smallest(ask_tree)
+    mid_price_before = do_mid_price(bid_book, ask_book)
     state = update_ask_book(ask_tree, ask_min, state)
+    %{bid_book: bid_book, ask_book: ask_book} = state
+    mid_price_after = do_mid_price(bid_book, ask_book)
     post_process_buy_order_match(order, matched_order)
 
     if order_type == :market_order do
@@ -745,8 +751,8 @@ defmodule APXR.Exchange do
         order.order_id,
         :market_order,
         order_vol,
-        ask_min,
-        do_ask_price(ask_book)
+        mid_price_before,
+        mid_price_after
       )
     end
 
@@ -763,25 +769,13 @@ defmodule APXR.Exchange do
          %{ask_book: ask_book} = state,
          ask_min,
          order,
-         order_type
+         _order_type
        )
        when matched_vol > order_vol do
     {_key, popped_order, ask_tree} = :gb_trees.take_smallest(ask_tree)
     popped_order = %{popped_order | volume: matched_vol - order_vol}
     ask_tree = :gb_trees.enter(popped_order.order_id, popped_order, ask_tree)
     post_process_buy_order_match(order, matched_order)
-
-    if order_type == :market_order do
-      ReportingService.push_price_impact(
-        timestep(),
-        order.order_id,
-        :market_order,
-        order_vol,
-        ask_min,
-        do_ask_price(ask_book)
-      )
-    end
-
     ask_book = :gb_trees.enter(ask_min, ask_tree, ask_book)
     state = %{state | last_price: ask_min, last_size: order_vol, ask_book: ask_book}
     {state, order}
@@ -792,14 +786,17 @@ defmodule APXR.Exchange do
          _matched_order,
          order_vol,
          bid_tree,
-         %{bid_book: bid_book} = state,
+         %{bid_book: bid_book, ask_book: ask_book} = state,
          bid_max,
          order,
          order_type
        )
        when matched_vol == order_vol do
     {_key, popped_order, bid_tree} = :gb_trees.take_smallest(bid_tree)
+    mid_price_before = do_mid_price(bid_book, ask_book)
     state = update_bid_book(bid_tree, bid_max, state)
+    %{bid_book: bid_book, ask_book: ask_book} = state
+    mid_price_after = do_mid_price(bid_book, ask_book)
     post_process_sell_order_match(order, popped_order)
 
     if order_type == :market_order do
@@ -808,8 +805,8 @@ defmodule APXR.Exchange do
         order.order_id,
         :market_order,
         order_vol,
-        bid_max,
-        do_bid_price(bid_book)
+        mid_price_before,
+        mid_price_after
       )
     end
 
@@ -822,14 +819,17 @@ defmodule APXR.Exchange do
          matched_order,
          order_vol,
          bid_tree,
-         %{bid_book: bid_book} = state,
+         %{bid_book: bid_book, ask_book: ask_book} = state,
          bid_max,
          order,
          order_type
        )
        when matched_vol < order_vol do
     {_key, _popped_order, bid_tree} = :gb_trees.take_smallest(bid_tree)
+    mid_price_before = do_mid_price(bid_book, ask_book)
     state = update_bid_book(bid_tree, bid_max, state)
+    %{bid_book: bid_book, ask_book: ask_book} = state
+    mid_price_after = do_mid_price(bid_book, ask_book)
     post_process_sell_order_match(order, matched_order)
 
     if order_type == :market_order do
@@ -838,8 +838,8 @@ defmodule APXR.Exchange do
         order.order_id,
         :market_order,
         order_vol,
-        bid_max,
-        do_bid_price(bid_book)
+        mid_price_before,
+        mid_price_after
       )
     end
 
@@ -856,25 +856,13 @@ defmodule APXR.Exchange do
          %{bid_book: bid_book} = state,
          bid_max,
          order,
-         order_type
+         _order_type
        )
        when matched_vol > order_vol do
     {_key, popped_order, bid_tree} = :gb_trees.take_smallest(bid_tree)
     popped_order = %{popped_order | volume: matched_vol - order_vol}
     bid_tree = :gb_trees.enter(popped_order.order_id, popped_order, bid_tree)
     post_process_sell_order_match(order, matched_order)
-
-    if order_type == :market_order do
-      ReportingService.push_price_impact(
-        timestep(),
-        order.order_id,
-        :market_order,
-        order_vol,
-        bid_max,
-        do_bid_price(bid_book)
-      )
-    end
-
     bid_book = :gb_trees.enter(bid_max, bid_tree, bid_book)
     state = %{state | last_price: bid_max, last_size: order_vol, bid_book: bid_book}
     {state, order}
@@ -1043,7 +1031,7 @@ defmodule APXR.Exchange do
   end
 
   defp normalize_price(price) when is_integer(price) or is_float(price) do
-    (price / 1.0) |> Float.round(2)
+    (price / 1.0) |> Float.round(4)
   end
 
   def normalize_volume(volume) when is_integer(volume) or is_float(volume) do

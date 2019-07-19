@@ -14,6 +14,7 @@ defmodule APXR.MomentumTrader do
 
   alias APXR.{
     Exchange,
+    OrderbookEvent,
     Trader
   }
 
@@ -53,14 +54,31 @@ defmodule APXR.MomentumTrader do
 
   @impl true
   def init(id) do
+    {:ok, _} = Registry.register(APXR.ReportingServiceRegistry, "orderbook_event", [])
     trader = init_trader(id)
-    {:ok, %{trader: trader}}
+    price = Exchange.last_price(:apxr, :apxr)
+    {:ok, %{price_history: [price], roc: 0.0, trader: trader}}
   end
 
   @impl true
   def handle_call({:actuate}, _from, state) do
-    trader = momentum_trader(state)
-    {:reply, :ok, %{state | trader: trader}}
+    state = action(state)
+    {:reply, :ok, state}
+  end
+
+  @impl true
+  def handle_cast(
+        {:broadcast, %OrderbookEvent{price: price, transaction: true, type: type}},
+        state
+      )
+      when type in [
+             :full_fill_buy_order,
+             :full_fill_sell_order,
+             :partial_fill_buy_order,
+             :partial_fill_sell_order
+           ] do
+    state = update_roc(price, state)
+    {:noreply, state}
   end
 
   @impl true
@@ -80,73 +98,64 @@ defmodule APXR.MomentumTrader do
     {:via, Registry, {APXR.TraderRegistry, id}}
   end
 
-  defp momentum_trader(%{trader: %Trader{trader_id: tid, cash: cash, lag_price: lag_p} = trader})
-       when lag_p == nil do
+  defp action(%{roc: roc, trader: %Trader{trader_id: tid, cash: cash} = trader} = state) do
     venue = :apxr
     ticker = :apxr
-    p = Exchange.last_price(venue, ticker)
-    momentum_trader(venue, ticker, tid, p, p, cash, 0, trader)
-  end
-
-  defp momentum_trader(%{
-         trader: %Trader{trader_id: tid, cash: cash, lag_price: {p1, counter}} = trader
-       }) do
-    venue = :apxr
-    ticker = :apxr
-    p = Exchange.last_price(venue, ticker)
-    momentum_trader(venue, ticker, tid, p, p1, cash, counter, trader)
-  end
-
-  defp momentum_trader(venue, ticker, tid, p, p1, cash, counter, trader) do
-    roc = rate_of_change(p, p1)
-    vol = round(abs(roc) * cash)
+    vol = round(roc * cash)
 
     if :rand.uniform() < @mt_delta do
-      cost = momentum_trader_place_order(venue, ticker, tid, vol, roc)
+      cost = place_order(venue, ticker, tid, vol, roc)
       cash = max(cash - cost, 0.0) |> Float.round(2)
-
-      %{trader | cash: cash}
-      |> momentum_trader_update_lag_price(counter, p, p1)
+      trader = %{trader | cash: cash}
+      %{state | trader: trader}
     else
-      momentum_trader_update_lag_price(trader, counter, p, p1)
+      state
     end
   end
 
-  defp momentum_trader_place_order(venue, ticker, tid, vol, roc) do
+  defp place_order(venue, ticker, tid, vol, roc) do
     cond do
       roc >= @mt_k ->
-        momentum_trader_place_order(venue, ticker, tid, vol, roc, :gt)
+        place_order(venue, ticker, tid, vol, roc, :gt)
 
       roc <= @mt_k * -1 ->
-        momentum_trader_place_order(venue, ticker, tid, vol, roc, :lt)
+        place_order(venue, ticker, tid, vol, roc, :lt)
 
       true ->
         0.0
     end
   end
 
-  defp momentum_trader_place_order(venue, ticker, tid, vol, _roc, :gt) do
+  defp place_order(venue, ticker, tid, vol, _roc, :gt) do
     cost = Exchange.ask_price(venue, ticker) * vol
     Exchange.buy_market_order(venue, ticker, tid, vol)
     cost
   end
 
-  defp momentum_trader_place_order(venue, ticker, tid, vol, _roc, :lt) do
+  defp place_order(venue, ticker, tid, vol, _roc, :lt) do
     cost = Exchange.bid_price(venue, ticker) * vol
     Exchange.sell_market_order(venue, ticker, tid, vol)
     cost
   end
 
-  defp momentum_trader_update_lag_price(trader, counter, p, p1) do
-    if counter > @mt_n do
-      %{trader | lag_price: {p, 0}}
+  defp update_roc(price, %{price_history: price_history} = state) do
+    price_history = price_history(price, price_history)
+    [price_prev] = Enum.take(price_history, -1)
+    roc = rate_of_change(price, price_prev)
+    %{state | roc: roc, price_history: price_history}
+  end
+
+  defp price_history(price, price_history) do
+    if length(price_history) < @mt_n do
+      [price | price_history]
     else
-      %{trader | lag_price: {p1, counter + 1}}
+      price_history = Enum.drop(price_history, -1)
+      [price | price_history]
     end
   end
 
-  defp rate_of_change(p, p1) do
-    (p - p1) / p1
+  defp rate_of_change(price, prive_prev) do
+    abs((price - prive_prev) / prive_prev)
   end
 
   defp init_trader(id) do

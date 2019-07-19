@@ -61,24 +61,25 @@ defmodule APXR.MarketMaker do
     {:ok, _} = Registry.register(APXR.ReportingServiceRegistry, "orderbook_event", [])
     trader = init_trader(id)
     init_side = Enum.random(0..1)
-    {:ok, %{order_side_history: [init_side], trader: trader}}
+    prediction = :rand.uniform()
+    {:ok, %{order_side_history: [init_side], prediction: prediction, trader: trader}}
   end
 
   @impl true
   def handle_call({:actuate}, _from, state) do
-    trader = market_maker(state)
-    {:reply, :ok, %{state | trader: trader}}
+    state = action(state)
+    {:reply, :ok, state}
   end
 
   @impl true
   def handle_cast({:broadcast, %OrderbookEvent{type: :new_market_order} = event}, state) do
-    state = update_order_side_history(event, state)
+    state = update_prediction(event, state)
     {:noreply, state}
   end
 
   @impl true
   def handle_cast({:broadcast, %OrderbookEvent{type: :new_limit_order} = event}, state) do
-    state = update_order_side_history(event, state)
+    state = update_prediction(event, state)
     {:noreply, state}
   end
 
@@ -131,35 +132,37 @@ defmodule APXR.MarketMaker do
     %{state | trader: trader}
   end
 
-  defp market_maker(%{
-         order_side_history: order_side_history,
-         trader: %Trader{trader_id: tid, cash: cash, outstanding_orders: outstanding} = trader
-       }) do
+  defp action(
+         %{
+           prediction: prediction,
+           trader: %Trader{trader_id: tid, cash: cash, outstanding_orders: outstanding} = trader
+         } = state
+       ) do
     venue = :apxr
     ticker = :apxr
     bid = Exchange.bid_price(venue, ticker)
     ask = Exchange.ask_price(venue, ticker)
-    prediction = simple_moving_avg(order_side_history)
 
     if :rand.uniform() < @mm_delta do
       for order <- outstanding, do: Exchange.cancel_order(venue, ticker, order)
-      {cost, orders} = market_maker_place_order(venue, ticker, tid, ask, bid, prediction)
+      {cost, orders} = place_order(venue, ticker, tid, ask, bid, prediction)
       cash = max(cash - cost, 0.0) |> Float.round(2)
-      %{trader | cash: cash, outstanding_orders: orders}
+      trader = %{trader | cash: cash, outstanding_orders: orders}
+      %{state | trader: trader}
     else
-      trader
+      state
     end
   end
 
-  defp market_maker_place_order(venue, ticker, tid, ask_price, bid_price, prediction) do
+  defp place_order(venue, ticker, tid, ask_price, bid_price, prediction) do
     if prediction < 0.5 do
-      market_maker_place_order(venue, ticker, tid, ask_price, bid_price, prediction, :lt)
+      place_order(venue, ticker, tid, ask_price, bid_price, prediction, :lt)
     else
-      market_maker_place_order(venue, ticker, tid, ask_price, bid_price, prediction, :gt)
+      place_order(venue, ticker, tid, ask_price, bid_price, prediction, :gt)
     end
   end
 
-  defp market_maker_place_order(venue, ticker, tid, ask_price, bid_price, _prediction, :lt) do
+  defp place_order(venue, ticker, tid, ask_price, bid_price, _prediction, :lt) do
     vol = :rand.uniform(@mm_max_vol)
     order1 = Exchange.sell_limit_order(venue, ticker, tid, ask_price, vol)
     order2 = Exchange.buy_limit_order(venue, ticker, tid, bid_price, @mm_vol)
@@ -168,7 +171,7 @@ defmodule APXR.MarketMaker do
     {cost, orders}
   end
 
-  defp market_maker_place_order(venue, ticker, tid, ask_price, bid_price, _prediction, :gt) do
+  defp place_order(venue, ticker, tid, ask_price, bid_price, _prediction, :gt) do
     vol = :rand.uniform(@mm_max_vol)
     order1 = Exchange.buy_limit_order(venue, ticker, tid, bid_price, vol)
     order2 = Exchange.sell_limit_order(venue, ticker, tid, ask_price, @mm_vol)
@@ -177,25 +180,24 @@ defmodule APXR.MarketMaker do
     {cost, orders}
   end
 
-  defp simple_moving_avg(items) when is_list(items) do
-    sum = Enum.reduce(items, 0, fn x, acc -> x + acc end)
-    sum / length(items)
-  end
-
-  defp update_order_side_history(
-         %OrderbookEvent{direction: side},
-         %{order_side_history: order_side_history} = state
-       ) do
-    order_side_history = order_side_history(side, order_side_history)
-    %{state | order_side_history: order_side_history}
+  defp update_prediction(%OrderbookEvent{direction: side}, %{order_side_history: osh} = state) do
+    osh = order_side_history(side, osh)
+    prediction = simple_moving_avg(osh)
+    %{state | order_side_history: osh, prediction: prediction}
   end
 
   defp order_side_history(side, order_side_history) do
     if length(order_side_history) < @mm_w do
       [side | order_side_history]
     else
-      [side | Enum.drop(order_side_history, -1)]
+      order_side_history = Enum.drop(order_side_history, -1)
+      [side | order_side_history]
     end
+  end
+
+  defp simple_moving_avg(items) when is_list(items) do
+    sum = Enum.reduce(items, 0, fn x, acc -> x + acc end)
+    sum / length(items)
   end
 
   defp init_trader(id) do

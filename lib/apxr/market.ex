@@ -85,26 +85,29 @@ defmodule APXR.Market do
       case type do
         MarketMaker ->
           MarketMaker.actuate({type, id})
+          Exchange.mid_price(:apxr, :apxr) |> ReportingService.push_mid_price(i + 1)
 
         LiquidityConsumer ->
           LiquidityConsumer.actuate({type, id})
+          Exchange.mid_price(:apxr, :apxr) |> ReportingService.push_mid_price(i + 1)
 
         MomentumTrader ->
           MomentumTrader.actuate({type, id})
+          Exchange.mid_price(:apxr, :apxr) |> ReportingService.push_mid_price(i + 1)
 
         MeanReversionTrader ->
           MeanReversionTrader.actuate({type, id})
+          Exchange.mid_price(:apxr, :apxr) |> ReportingService.push_mid_price(i + 1)
 
         NoiseTrader ->
           NoiseTrader.actuate({type, id})
+          Exchange.mid_price(:apxr, :apxr) |> ReportingService.push_mid_price(i + 1)
 
         MyTrader ->
           MyTrader.actuate({type, id})
+          Exchange.mid_price(:apxr, :apxr) |> ReportingService.push_mid_price(i + 1)
       end
     end
-
-    Exchange.mid_price(:apxr, :apxr)
-    |> ReportingService.push_mid_price(i + 1)
 
     :ets.update_counter(:timestep, :step, 1)
     Enum.shuffle(traders) |> call_to_action(i + 1, timsteps_left - 1)
