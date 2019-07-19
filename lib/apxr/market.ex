@@ -79,45 +79,42 @@ defmodule APXR.Market do
   defp call_to_action(traders, i, timsteps_left) do
     if rem(i, 100) == 0, do: ProgressBar.print(i, @timesteps)
 
-    maybe_populate_orderbook()
+    if Exchange.highest_bid_prices(:apxr, :apxr) == [] or
+         Exchange.lowest_ask_prices(:apxr, :apxr) == [] do
+      NoiseTrader.actuate({NoiseTrader, 1})
+      Exchange.mid_price(:apxr, :apxr) |> ReportingService.push_mid_price(i + 1)
+    else
+      for {type, id} <- traders do
+        case type do
+          MarketMaker ->
+            MarketMaker.actuate({type, id})
+            Exchange.mid_price(:apxr, :apxr) |> ReportingService.push_mid_price(i + 1)
 
-    for {type, id} <- traders do
-      case type do
-        MarketMaker ->
-          MarketMaker.actuate({type, id})
-          Exchange.mid_price(:apxr, :apxr) |> ReportingService.push_mid_price(i + 1)
+          LiquidityConsumer ->
+            LiquidityConsumer.actuate({type, id})
+            Exchange.mid_price(:apxr, :apxr) |> ReportingService.push_mid_price(i + 1)
 
-        LiquidityConsumer ->
-          LiquidityConsumer.actuate({type, id})
-          Exchange.mid_price(:apxr, :apxr) |> ReportingService.push_mid_price(i + 1)
+          MomentumTrader ->
+            MomentumTrader.actuate({type, id})
+            Exchange.mid_price(:apxr, :apxr) |> ReportingService.push_mid_price(i + 1)
 
-        MomentumTrader ->
-          MomentumTrader.actuate({type, id})
-          Exchange.mid_price(:apxr, :apxr) |> ReportingService.push_mid_price(i + 1)
+          MeanReversionTrader ->
+            MeanReversionTrader.actuate({type, id})
+            Exchange.mid_price(:apxr, :apxr) |> ReportingService.push_mid_price(i + 1)
 
-        MeanReversionTrader ->
-          MeanReversionTrader.actuate({type, id})
-          Exchange.mid_price(:apxr, :apxr) |> ReportingService.push_mid_price(i + 1)
+          NoiseTrader ->
+            NoiseTrader.actuate({type, id})
+            Exchange.mid_price(:apxr, :apxr) |> ReportingService.push_mid_price(i + 1)
 
-        NoiseTrader ->
-          NoiseTrader.actuate({type, id})
-          Exchange.mid_price(:apxr, :apxr) |> ReportingService.push_mid_price(i + 1)
-
-        MyTrader ->
-          MyTrader.actuate({type, id})
-          Exchange.mid_price(:apxr, :apxr) |> ReportingService.push_mid_price(i + 1)
+          MyTrader ->
+            MyTrader.actuate({type, id})
+            Exchange.mid_price(:apxr, :apxr) |> ReportingService.push_mid_price(i + 1)
+        end
       end
     end
 
     :ets.update_counter(:timestep, :step, 1)
     Enum.shuffle(traders) |> call_to_action(i + 1, timsteps_left - 1)
-  end
-
-  defp maybe_populate_orderbook() do
-    if Exchange.highest_bid_prices(:apxr, :apxr) == [] or
-         Exchange.lowest_ask_prices(:apxr, :apxr) == [] do
-      NoiseTrader.actuate({NoiseTrader, 1})
-    end
   end
 
   defp init_traders(lcs, mms, mrts, mmts, nts, myts) do

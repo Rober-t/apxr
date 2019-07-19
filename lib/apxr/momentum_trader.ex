@@ -98,6 +98,10 @@ defmodule APXR.MomentumTrader do
     {:via, Registry, {APXR.TraderRegistry, id}}
   end
 
+  defp action(%{trader: %Trader{cash: 0.0} } = state) do
+    state
+  end
+
   defp action(%{roc: roc, trader: %Trader{trader_id: tid, cash: cash} = trader} = state) do
     venue = :apxr
     ticker = :apxr

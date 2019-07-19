@@ -423,7 +423,7 @@ defmodule APXR.Exchange do
   defp do_mid_price(bid_book, ask_book) do
     bid_price = do_bid_price(bid_book)
     ask_price = do_ask_price(ask_book)
-    ((bid_price + ask_price) / 2.0) |> Float.round(4)
+    ((bid_price + ask_price) / 2.0) |> Float.round(2)
   end
 
   defp do_bid_price(bid_book) do
@@ -1031,7 +1031,7 @@ defmodule APXR.Exchange do
   end
 
   defp normalize_price(price) when is_integer(price) or is_float(price) do
-    (price / 1.0) |> Float.round(4)
+    (price / 1.0) |> Float.round(2)
   end
 
   def normalize_volume(volume) when is_integer(volume) or is_float(volume) do

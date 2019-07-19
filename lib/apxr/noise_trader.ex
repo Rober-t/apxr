@@ -141,44 +141,52 @@ defmodule APXR.NoiseTrader do
     spread = max(ask_price - bid_price, @tick_size)
     off_sprd_amnt = off_sprd_amnt(@nt_xmin, @nt_beta) + spread
     in_spr_price = Enum.random(round(bid_price * 100)..round(ask_price * 100)) / 100
-    maybe_populate_orderbook(venue, ticker, tid, bid_price, ask_price)
 
-    if :rand.uniform() < @nt_delta do
-      case :rand.uniform() do
-        action when action < @nt_m ->
-          cost = market_order(venue, ticker, type, tid)
-          cash = max(cash - cost, 0.0) |> Float.round(2)
-          trader = %{trader | cash: cash}
-          %{state | trader: trader}
-
-        action when action < @nt_m + @nt_l ->
-          {cost, orders} =
-            case :rand.uniform() do
-              lo when lo < @nt_crs ->
-                limit_order(type, venue, ticker, tid, ask_price, bid_price)
-
-              lo when lo < @nt_crs + @nt_inspr ->
-                limit_order(type, venue, ticker, tid, in_spr_price, in_spr_price)
-
-              lo when lo < @nt_crs + @nt_inspr + @nt_spr ->
-                limit_order(type, venue, ticker, tid, bid_price, ask_price)
-
-              _ ->
-                limit_order(type, venue, ticker, tid, bid_price, ask_price, off_sprd_amnt)
-            end
-
-          cash = max(cash - cost, 0.0) |> Float.round(2)
-          orders = Enum.reject(orders, fn order -> order == :rejected end)
-          trader = %{trader | cash: cash, outstanding_orders: outstanding ++ orders}
-          %{state | trader: trader}
-
-        _ ->
-          outstanding = maybe_cancel_order(venue, ticker, outstanding)
-          trader = %{trader | outstanding_orders: outstanding}
-          %{state | trader: trader}
-      end
+    if Exchange.highest_bid_prices(venue, ticker) == [] or
+         Exchange.lowest_ask_prices(venue, ticker) == [] do
+      {cost, orders} = populate_orderbook(venue, ticker, tid, bid_price, ask_price)
+      cash = max(cash - cost, 0.0) |> Float.round(2)
+      orders = Enum.reject(orders, fn order -> order == :rejected end)
+      trader = %{trader | cash: cash, outstanding_orders: outstanding ++ orders}
+      %{state | trader: trader}
     else
-      state
+      if :rand.uniform() < @nt_delta do
+        case :rand.uniform() do
+          action when action < @nt_m ->
+            cost = market_order(venue, ticker, type, tid)
+            cash = max(cash - cost, 0.0) |> Float.round(2)
+            trader = %{trader | cash: cash}
+            %{state | trader: trader}
+
+          action when action < @nt_m + @nt_l ->
+            {cost, orders} =
+              case :rand.uniform() do
+                lo when lo < @nt_crs ->
+                  limit_order(type, venue, ticker, tid, ask_price, bid_price)
+
+                lo when lo < @nt_crs + @nt_inspr ->
+                  limit_order(type, venue, ticker, tid, in_spr_price, in_spr_price)
+
+                lo when lo < @nt_crs + @nt_inspr + @nt_spr ->
+                  limit_order(type, venue, ticker, tid, bid_price, ask_price)
+
+                _ ->
+                  limit_order(type, venue, ticker, tid, bid_price, ask_price, off_sprd_amnt)
+              end
+
+            cash = max(cash - cost, 0.0) |> Float.round(2)
+            orders = Enum.reject(orders, fn order -> order == :rejected end)
+            trader = %{trader | cash: cash, outstanding_orders: outstanding ++ orders}
+            %{state | trader: trader}
+
+          _ ->
+            outstanding = maybe_cancel_order(venue, ticker, outstanding)
+            trader = %{trader | outstanding_orders: outstanding}
+            %{state | trader: trader}
+        end
+      else
+        state
+      end
     end
   end
 
@@ -258,7 +266,7 @@ defmodule APXR.NoiseTrader do
     end
   end
 
-  defp maybe_populate_orderbook(venue, ticker, tid, bid_price, ask_price) do
+  defp populate_orderbook(venue, ticker, tid, bid_price, ask_price) do
     cond do
       Exchange.highest_bid_prices(venue, ticker) == [] and
           Exchange.lowest_ask_prices(venue, ticker) == [] ->
