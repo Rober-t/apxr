@@ -98,7 +98,7 @@ defmodule APXR.MomentumTrader do
     {:via, Registry, {APXR.TraderRegistry, id}}
   end
 
-  defp action(%{trader: %Trader{cash: 0.0} } = state) do
+  defp action(%{trader: %Trader{cash: 0.0}} = state) do
     state
   end
 

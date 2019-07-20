@@ -79,39 +79,44 @@ defmodule APXR.Market do
   defp call_to_action(traders, i, timsteps_left) do
     if rem(i, 100) == 0, do: ProgressBar.print(i, @timesteps)
 
-    if Exchange.highest_bid_prices(:apxr, :apxr) == [] or
-         Exchange.lowest_ask_prices(:apxr, :apxr) == [] do
-      NoiseTrader.actuate({NoiseTrader, 1})
-      Exchange.mid_price(:apxr, :apxr) |> ReportingService.push_mid_price(i + 1)
-    else
-      for {type, id} <- traders do
-        case type do
-          MarketMaker ->
-            MarketMaker.actuate({type, id})
-            Exchange.mid_price(:apxr, :apxr) |> ReportingService.push_mid_price(i + 1)
+    mid_prices =
+      if Exchange.highest_bid_prices(:apxr, :apxr) == [] or
+           Exchange.lowest_ask_prices(:apxr, :apxr) == [] do
+        NoiseTrader.actuate({NoiseTrader, 1})
+        [Exchange.mid_price(:apxr, :apxr)]
+      else
+        for {type, id} <- traders do
+          case type do
+            MarketMaker ->
+              MarketMaker.actuate({type, id})
+              Exchange.mid_price(:apxr, :apxr)
 
-          LiquidityConsumer ->
-            LiquidityConsumer.actuate({type, id})
-            Exchange.mid_price(:apxr, :apxr) |> ReportingService.push_mid_price(i + 1)
+            LiquidityConsumer ->
+              LiquidityConsumer.actuate({type, id})
+              Exchange.mid_price(:apxr, :apxr)
 
-          MomentumTrader ->
-            MomentumTrader.actuate({type, id})
-            Exchange.mid_price(:apxr, :apxr) |> ReportingService.push_mid_price(i + 1)
+            MomentumTrader ->
+              MomentumTrader.actuate({type, id})
+              Exchange.mid_price(:apxr, :apxr)
 
-          MeanReversionTrader ->
-            MeanReversionTrader.actuate({type, id})
-            Exchange.mid_price(:apxr, :apxr) |> ReportingService.push_mid_price(i + 1)
+            MeanReversionTrader ->
+              MeanReversionTrader.actuate({type, id})
+              Exchange.mid_price(:apxr, :apxr)
 
-          NoiseTrader ->
-            NoiseTrader.actuate({type, id})
-            Exchange.mid_price(:apxr, :apxr) |> ReportingService.push_mid_price(i + 1)
+            NoiseTrader ->
+              NoiseTrader.actuate({type, id})
+              Exchange.mid_price(:apxr, :apxr)
 
-          MyTrader ->
-            MyTrader.actuate({type, id})
-            Exchange.mid_price(:apxr, :apxr) |> ReportingService.push_mid_price(i + 1)
+            MyTrader ->
+              MyTrader.actuate({type, id})
+              Exchange.mid_price(:apxr, :apxr)
+          end
         end
       end
-    end
+
+    (Enum.sum(mid_prices) / length(mid_prices))
+    |> Float.round(2)
+    |> ReportingService.push_mid_price(i + 1)
 
     :ets.update_counter(:timestep, :step, 1)
     Enum.shuffle(traders) |> call_to_action(i + 1, timsteps_left - 1)
