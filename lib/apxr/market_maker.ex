@@ -23,7 +23,7 @@ defmodule APXR.MarketMaker do
 
   @mm_delta 0.1
   @mm_w 50
-  @mm_max_vol 200_000
+  @mm_max_vol 100_000
   @mm_vol 1
 
   ## Client API
