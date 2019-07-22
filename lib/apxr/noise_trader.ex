@@ -203,7 +203,7 @@ defmodule APXR.NoiseTrader do
   defp market_order(venue, ticker, :buy, tid) do
     vol =
       min(
-        Enum.sum(Exchange.lowest_ask_prices(venue, ticker)),
+        Enum.sum(Exchange.lowest_ask_prices(venue, ticker)) / 2,
         :math.exp(@nt_mu_mo + @nt_sigma_mo * :rand.uniform())
       )
 
@@ -214,7 +214,7 @@ defmodule APXR.NoiseTrader do
   defp market_order(venue, ticker, :sell, tid) do
     vol =
       min(
-        Enum.sum(Exchange.highest_bid_prices(venue, ticker)),
+        Enum.sum(Exchange.highest_bid_prices(venue, ticker)) / 2,
         :math.exp(@nt_mu_mo + @nt_sigma_mo * :rand.uniform())
       )
 
@@ -238,7 +238,7 @@ defmodule APXR.NoiseTrader do
 
   defp limit_order(:buy, venue, ticker, tid, bid_price, _ask_price, off_sprd_amnt) do
     vol = limit_order_vol()
-    price = bid_price - off_sprd_amnt
+    price = bid_price + off_sprd_amnt
     order = Exchange.buy_limit_order(venue, ticker, tid, price, vol)
     cost = vol * price
     {cost, [order]}
@@ -246,14 +246,14 @@ defmodule APXR.NoiseTrader do
 
   defp limit_order(:sell, venue, ticker, tid, _bid_price, ask_price, off_sprd_amnt) do
     vol = limit_order_vol()
-    price = ask_price + off_sprd_amnt
+    price = ask_price - off_sprd_amnt
     order = Exchange.sell_limit_order(venue, ticker, tid, price, vol)
     cost = vol * price
     {cost, [order]}
   end
 
   defp limit_order_vol() do
-    :math.exp(@nt_mu_lo + @nt_sigma_lo * :rand.uniform(100)) |> round()
+    :math.exp(@nt_mu_lo + @nt_sigma_lo * :rand.uniform()) |> round()
   end
 
   defp off_sprd_amnt(xmin, beta) do

@@ -1013,6 +1013,9 @@ defmodule APXR.Exchange do
       end
 
     %{state | bid_book: bid_book}
+  rescue
+    FunctionClauseError ->
+      state
   end
 
   defp update_ask_book(tree, price, %{ask_book: ask_book} = state) do
@@ -1024,6 +1027,9 @@ defmodule APXR.Exchange do
       end
 
     %{state | ask_book: ask_book}
+  rescue
+    FunctionClauseError ->
+      state
   end
 
   defp normalize_price(:undefined) do
