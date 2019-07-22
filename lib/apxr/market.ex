@@ -82,8 +82,16 @@ defmodule APXR.Market do
     mid_prices =
       if Exchange.highest_bid_prices(:apxr, :apxr) == [] or
            Exchange.lowest_ask_prices(:apxr, :apxr) == [] do
-        NoiseTrader.actuate({NoiseTrader, 1})
-        [Exchange.mid_price(:apxr, :apxr)]
+        for {type, id} <- traders do
+          case type do
+            NoiseTrader ->
+              NoiseTrader.actuate({type, id})
+              Exchange.mid_price(:apxr, :apxr)
+
+            _ ->
+              nil
+          end
+        end
       else
         for {type, id} <- traders do
           case type do
@@ -113,6 +121,8 @@ defmodule APXR.Market do
           end
         end
       end
+
+    mid_prices = Enum.reject(mid_prices, &is_nil/1)
 
     (Enum.sum(mid_prices) / length(mid_prices))
     |> Float.round(2)

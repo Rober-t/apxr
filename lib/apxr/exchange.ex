@@ -163,7 +163,7 @@ defmodule APXR.Exchange do
 
   @doc ~S"""
   Level 2 market data.
-  Returns (up to) the highest 15 prices where traders are willing to buy an asset,
+  Returns (up to) the highest 5 prices where traders are willing to buy an asset,
   and have placed an order to do so.
 
   ## Examples
@@ -179,7 +179,7 @@ defmodule APXR.Exchange do
   @doc ~S"""
   Level 2 market data.
   Returns the volume that people are trying to buy at each of the
-  highest (up to) 15 prices where traders are willing to buy an asset,
+  highest (up to) 5 prices where traders are willing to buy an asset,
   and have placed an order to do so.
 
   ## Examples
@@ -194,7 +194,7 @@ defmodule APXR.Exchange do
 
   @doc ~S"""
   Level 2 market data.
-  Returns (up to) the lowest 15 prices where traders are willing to sell an asset,
+  Returns (up to) the lowest 5 prices where traders are willing to sell an asset,
   and have placed an order to do so.
 
   ## Examples
@@ -210,7 +210,7 @@ defmodule APXR.Exchange do
   @doc ~S"""
   Level 2 market data.
   Returns the volume that people are trying to sell at each of the
-  lowest (up to) 15 prices where traders are willing to sell an asset,
+  lowest (up to) 5 prices where traders are willing to sell an asset,
   and have placed an order to do so.
 
   ## Examples
@@ -465,12 +465,12 @@ defmodule APXR.Exchange do
   end
 
   defp do_highest_bid_prices(bid_book) do
-    bid_book_list = :gb_trees.to_list(bid_book) |> Enum.reverse() |> Enum.slice(0, 15)
+    bid_book_list = :gb_trees.to_list(bid_book) |> Enum.reverse() |> Enum.slice(0, 5)
     for {price, _bid_tree} <- bid_book_list, do: price
   end
 
   defp do_highest_bid_sizes(bid_book) do
-    bid_book_list = :gb_trees.to_list(bid_book) |> Enum.reverse() |> Enum.slice(0, 15)
+    bid_book_list = :gb_trees.to_list(bid_book) |> Enum.reverse() |> Enum.slice(0, 5)
     bid_tree_list = for {_price, bid_tree} <- bid_book_list, do: bid_tree
 
     for bid_tree <- bid_tree_list do
@@ -480,12 +480,12 @@ defmodule APXR.Exchange do
   end
 
   defp do_lowest_ask_prices(ask_book) do
-    ask_book_list = :gb_trees.to_list(ask_book) |> Enum.slice(0, 15)
+    ask_book_list = :gb_trees.to_list(ask_book) |> Enum.slice(0, 5)
     for {price, _ask_tree} <- ask_book_list, do: price
   end
 
   defp do_lowest_ask_sizes(ask_book) do
-    ask_book_list = :gb_trees.to_list(ask_book) |> Enum.slice(0, 15)
+    ask_book_list = :gb_trees.to_list(ask_book) |> Enum.slice(0, 5)
     ask_tree_list = for {_price, ask_tree} <- ask_book_list, do: ask_tree
 
     for ask_tree <- ask_tree_list do
