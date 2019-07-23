@@ -24,6 +24,7 @@ defmodule APXR.MeanReversionTrader do
   @mrt_vol 1
   @mrt_k 1
   @mrt_a 0.94
+  @mrt_n 5
 
   ## Client API
 
@@ -59,8 +60,8 @@ defmodule APXR.MeanReversionTrader do
   def init(id) do
     {:ok, _} = Registry.register(APXR.ReportingServiceRegistry, "orderbook_event", [])
     trader = init_trader(id)
-    last_price = Exchange.last_price(:apxr, :apxr)
-    {:ok, %{n: 0, std_dev: 0.0, ema: last_price, trader: trader}}
+    price = Exchange.last_price(:apxr, :apxr)
+    {:ok, %{std_dev: 0.0, ema: nil, price_history: [price], trader: trader}}
   end
 
   @impl true
@@ -101,6 +102,10 @@ defmodule APXR.MeanReversionTrader do
     {:via, Registry, {APXR.TraderRegistry, id}}
   end
 
+  defp action(%{ema: nil} = state) do
+    state
+  end
+
   defp action(
          %{ema: ema, std_dev: std_dev, trader: %Trader{trader_id: tid, cash: cash} = trader} =
            state
@@ -138,35 +143,57 @@ defmodule APXR.MeanReversionTrader do
     end
   end
 
-  defp update_stats(price, %{n: n, m: m, s: s, ema: ema} = state) do
-    {n1, m1, s1} = running_stat(n, price, m, s)
-    std_dev = std_dev(n, s)
-    ema = ema + @mrt_a * (price - ema)
-    %{state | n: n1, m: m1, s: s1, std_dev: std_dev, ema: ema}
+  defp update_stats(price, %{price_history: price_history} = state) do
+    n = length(price_history)
+    prev_ema = exponential_moving_avg(n, price_history)
+    ema = prev_ema + @mrt_a * (price - prev_ema)
+    std_dev = std_dev(price_history)
+    price_history = price_history(price, price_history)
+    %{state | std_dev: std_dev, ema: ema, price_history: price_history}
   end
 
-  defp running_stat(n, x, prev_m, prev_s) do
-    n1 = n + 1
-
-    if n1 == 1 do
-      {n1, x, 0}
+  defp price_history(price, price_history) do
+    if length(price_history) < @mrt_n do
+      [price | price_history]
     else
-      m = prev_m + (x - prev_m) / n
-      s = prev_s + (x - prev_m) * (x - m)
-      {n1, m, s}
+      price_history = Enum.drop(price_history, -1)
+      [price | price_history]
     end
   end
 
-  defp std_dev(n, s) do
-    var(n, s) |> :math.sqrt()
+  defp std_dev(samples) do
+    total = Enum.sum(samples)
+    sample_size = length(samples)
+    average = total / sample_size
+    variance = variance(samples, average, sample_size)
+    :math.sqrt(variance)
   end
 
-  defp var(n, s) do
-    if n > 1 do
-      abs(s / (n - 1))
-    else
-      0.0
-    end
+  defp variance(samples, average, sample_size) do
+    total_variance =
+      Enum.reduce(samples, 0, fn sample, total ->
+        total + :math.pow(sample - average, 2)
+      end)
+
+    total_variance / (sample_size - 1)
+  end
+
+  # Source: https://github.com/jhartwell/Taex - MIT License
+  defp exponential_moving_avg(n, prices) do
+    [head | _] = exp_calc(n, prices)
+    head
+  end
+
+  defp exp_calc(k, [head | tail]), do: exp_calc(k, tail, [head])
+  defp exp_calc(_, [], emas), do: emas
+
+  defp exp_calc(n, [p | tail], [ema_head | ema_tail]) do
+    k = weighting_multiplier(n)
+    exp_calc(n, tail, [p * k + ema_head * (1 - k)] ++ [ema_head] ++ ema_tail)
+  end
+
+  defp weighting_multiplier(n) do
+    2 / (n + 1)
   end
 
   defp init_trader(id) do

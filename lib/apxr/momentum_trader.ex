@@ -143,9 +143,9 @@ defmodule APXR.MomentumTrader do
   end
 
   defp update_roc(price, %{price_history: price_history} = state) do
-    price_history = price_history(price, price_history)
     [price_prev] = Enum.take(price_history, -1)
     roc = rate_of_change(price, price_prev)
+    price_history = price_history(price, price_history)
     %{state | roc: roc, price_history: price_history}
   end
 

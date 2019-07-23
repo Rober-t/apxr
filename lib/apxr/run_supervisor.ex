@@ -10,11 +10,11 @@ defmodule APXR.RunSupervisor do
   @init_vol 1
 
   # How many of each type of trader to initialize
-  @liquidity_consumers 10
-  @market_makers 10
-  @mean_reversion_traders 40
-  @momentum_traders 40
-  @noise_traders 75
+  @liquidity_consumers 5
+  @market_makers 5
+  @mean_reversion_traders 25
+  @momentum_traders 25
+  @noise_traders 40
   @my_traders 1
 
   def start_link(opts) do
