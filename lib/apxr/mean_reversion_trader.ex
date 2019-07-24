@@ -24,7 +24,7 @@ defmodule APXR.MeanReversionTrader do
   @mrt_vol 1
   @mrt_k 1
   @mrt_a 0.94
-  @mrt_n 5
+  @mrt_n 50
 
   ## Client API
 
