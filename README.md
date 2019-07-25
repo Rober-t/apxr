@@ -105,17 +105,25 @@ The program outputs four CSV files:
 - `apxr_mid_prices`
 - `apxr_trades`
 - `apxr_order_sides`
-- `apxr_price_impacts` 
+- `apxr_price_impacts`
 
 --------------------
 ### Validation
 
-The data can be validated with the attached Juypter notebook `validate.ipynb`. It requires Python 3 to be installed. The notebook is configured to import the data from the above files. The model is able to reproduce a number of stylized market properties including: clustered volatility, autocorrelation of returns, long memory in order flow, concave price impact and the presence of extreme price events.
+The data can be validated with the attached Juypter notebook `validate.ipynb`. It requires Python 3 to be installed. The notebook is configured to import the data from the above files. The model is validated against a number of stylized market properties including: clustered volatility, autocorrelation of returns, long memory in order flow, price impact and the presence of extreme price events.
+
+Run
+
+```
+jupyter notebook
+```
+
+Navigate to 'http://localhost:8888/notebooks/validate.ipynb'
 
 --------------------
 ### Development
 
-The program is designed for extension. For example, additional tickers, venues, circuit breakers, etc., can all be added. To implement your own trader see the `MyTrader` module. This can be modified to implement your trading strategy. Multiple different strategies can be added. If you would prefer to work in Python that too can easily be implemented. Furthermore, the random number seed can be held constant across runs to get more deterministic behavior. What you build on top is up to you and your needs.
+The program is designed for extension. For example, additional tickers, venues, circuit breakers, etc., can all be added. To implement your own trader see the `MyTrader` module. This can be modified to implement your trading strategy. Multiple different strategies can be added. If you would prefer to work in Python that too can easily be implemented. What you build on top is up to you and your needs.
 
 --------------------
 ### Debugging
@@ -145,4 +153,11 @@ IO.inspect(SomethingToInspect)
 ```
 
 --------------------
-Copyright (C) 2019 ApproximateReality - hello@approximatereality.com
+### Related publications
+
+High frequency trading strategies, market fragility and price spikes: an agent based model perspective.
+McGroarty, F., Booth, A., Gerding, E. et al. Ann Oper Res (2018). https://doi.org/10.1007/s10479-018-3019-4
+
+--------------------
+
+Copyright (C) 2019 ApproximateReality - approximatereality@gmail.com
