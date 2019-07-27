@@ -16,7 +16,6 @@ Note: This paper fails to provide several parameters, notably: the composition o
 * [Requirements](#requirements)
 * [Installation](#installation)
 * [Quick start](#quick-start)
-* [Erlang VM](#erlang-vm)
 * [Introduction](#introduction)
 * [Architecture](#architecture)
 * [Configuration](#configuration)
@@ -48,15 +47,6 @@ Windows: https://github.com/elixir-lang/elixir/wiki/Windows
 
 1. Run `mix check`
 2. Run `bin/run`
-
---------------------
-### Erlang VM
-
-The Erlang VM runs as one operating system process, and by default runs one OS thread per core. Elixir programs use all CPU cores.
-
-Erlang processes have no connection to OS processes or threads. Erlang processes are lightweight (grow and shrink dynamically) with small memory footprint, fast to create and terminate, and the scheduling overhead is low. An Erlang system running over one million (Erlang) processes may run one operating system process. Erlang processes share no state with each other, and communicate through asynchronous messages. This makes it the first popular actor-based concurrency implementation.
-
-Erlang’s garbage collector works under certain assumptions that help its efficiency. Every variable is immutable, so once a variable is created, the value it points to never changes. Values are copied between processes, so memory referenced in a process is (almost always) isolated. And the garbage collector runs per process, which are relatively small.
 
 --------------------
 ### Introduction
