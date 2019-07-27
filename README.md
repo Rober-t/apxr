@@ -1,14 +1,14 @@
 # APXR
 
-An agent-based simulation environment that is realistic and robust enough for the analysis of algorithmic trading strategies. It is centered around a fully functioning limit order book (LOB) and populations of agents that represent common market behaviors and strategies. The agents operate on different timescales and their strategic behaviors depend on other market participants.
+A platform for the testing and optimization of trading algorithms.
 
-ABMs can be thought of as models in which a number of heterogeneous agents interact with each other and their environment in a particular way. One of the key advantages of ABMs, compared to the other modeling methods, is their ability to model the heterogeneity of agents. Moreover, ABMs can provide insight into not just the behavior of individual agents but also the aggregate effects that emerge from the interactions of all agents. This type of modeling lends itself perfectly to capturing the complex phenomena often found in financial systems.
+--------------------
+### Related publications
 
-The main objective of the program is to identify the emerging patterns due to the complex interactions within the market. We consider five categories of traders (simplest explanation of the market ecology) which enables us to credibly mimic (including extreme price changes) price patterns in the market. The model is stated in pseudo-continuous time. That is, a simulated day is divided into T = 300,000 periods (approximately the number of 10ths of a second in an 8.5 h trading day) and during each period there is a possibility for each agent to act. Lower action probabilities correspond to slower trading speeds.
+High frequency trading strategies, market fragility and price spikes: an agent based model perspective.
+McGroarty, F., Booth, A., Gerding, E. et al. Ann Oper Res (2018). https://doi.org/10.1007/s10479-018-3019-4
 
-The model comprises of 5 agent types: Market makers, liquidity consumers, mean reversion traders, momentum traders and noise traders. Importantly, when chosen, agents are not required to act. This facet allows agents to vary their activity through time and in response the market, as with real-world market participants.
-
-Upon being chosen to act, if an agent wishes to submit an order, it will communicate an order type, volume and price determined by that agent’s internal logic. The order is then submitted to the LOB where it is matched using price-time priority. If no match occurs then the order is stored in the book until it is later filled or canceled by the originating trader.
+Note: This paper fails to provide several parameters, notably: the composition of the Agents, the wealth parameter W in the Momentum trader logic, the volume parameter v- in the MarketMaker trader logic and the number of standard deviations K in the MeanReversion trader logic. This obviously makes it difficult to reproduce the authors work. Several attempts were made to get in contact with the author of the source code, Dr. Ash Booth, but despite being engaged online he has thus far failed to respond.
 
 --------------------
 ### Table of Contents
@@ -18,6 +18,7 @@ Upon being chosen to act, if an agent wishes to submit an order, it will communi
 * [Quick start](#quick-start)
 * [Erlang VM](#erlang-vm)
 * [Introduction](#introduction)
+* [Architecture](#architecture)
 * [Configuration](#configuration)
 * [Outputs](#outputs)
 * [Validation](#validation)
@@ -55,16 +56,27 @@ The Erlang VM runs as one operating system process, and by default runs one OS t
 
 Erlang processes have no connection to OS processes or threads. Erlang processes are lightweight (grow and shrink dynamically) with small memory footprint, fast to create and terminate, and the scheduling overhead is low. An Erlang system running over one million (Erlang) processes may run one operating system process. Erlang processes share no state with each other, and communicate through asynchronous messages. This makes it the first popular actor-based concurrency implementation.
 
-If process is waiting for a message (stuck in receive operator) it will never be queued for execution until a message is found. This is why millions of mostly idle processes are able to run on a single machine without reaching high CPU usage.
-
-Erlang’s garbage collector works under certain assumptions that help its efficiency. Every variable is immutable, so once a variable is created, the value it points to never changes. Values are copied between processes, so memory referenced in a process is (almost always) isolated. And the garbage collector runs per process, which are relatively small. See section 4 of Programming the Parallel World for a detailed overview of Erlang processes and garbage collection.
+Erlang’s garbage collector works under certain assumptions that help its efficiency. Every variable is immutable, so once a variable is created, the value it points to never changes. Values are copied between processes, so memory referenced in a process is (almost always) isolated. And the garbage collector runs per process, which are relatively small.
 
 --------------------
 ### Introduction
 
+An agent-based simulation environment that is realistic and robust enough for the analysis of algorithmic trading strategies. It is centered around a fully functioning limit order book (LOB) and populations of agents that represent common market behaviors and strategies. The agents operate on different timescales and their strategic behaviors depend on other market participants.
+
+ABMs can be thought of as models in which a number of heterogeneous agents interact with each other and their environment in a particular way. One of the key advantages of ABMs, compared to the other modeling methods, is their ability to model the heterogeneity of agents. Moreover, ABMs can provide insight into not just the behavior of individual agents but also the aggregate effects that emerge from the interactions of all agents. This type of modeling lends itself perfectly to capturing the complex phenomena often found in financial systems.
+
+The main objective of the program is to identify the emerging patterns due to the complex interactions within the market. We consider five categories of traders (simplest explanation of the market ecology) which enables us to credibly mimic (including extreme price changes) price patterns in the market. The model is stated in pseudo-continuous time. That is, a simulated day is divided into T = 300,000 periods (approximately the number of 10ths of a second in an 8.5 h trading day) and during each period there is a possibility for each agent to act. Lower action probabilities correspond to slower trading speeds.
+
+The model comprises of 5 agent types: Market makers, liquidity consumers, mean reversion traders, momentum traders and noise traders. Importantly, when chosen, agents are not required to act. This facet allows agents to vary their activity through time and in response the market, as with real-world market participants.
+
+Upon being chosen to act, if an agent wishes to submit an order, it will communicate an order type, volume and price determined by that agent’s internal logic. The order is then submitted to the LOB where it is matched using price-time priority. If no match occurs then the order is stored in the book until it is later filled or canceled by the originating trader.
+
+--------------------
+### Architecture
+
 The platform favors correctness, developer agility, and stability. Throughput, latency, and execution speed are not overlooked, but viewed as secondary. The idea is to build a system that is simple/correct and then optimize for performance.
 
-The system is composed of the following Elixir GenServer processes all of which fall under the same supervision tree:
+The system is composed of the following Elixir GenServer processes:
 - Market: A coordinating process that summons the traders to act on each iteration.
 - Exchange: A fully functioning limit order book and matching engine. Provides Level 1 and Level 2 market data on demand. Notifies traders when their trades have executed.
 - Traders: Various different Trader types that form the market ecology.
@@ -151,12 +163,6 @@ or
 ```
 IO.inspect(SomethingToInspect)
 ```
-
---------------------
-### Related publications
-
-High frequency trading strategies, market fragility and price spikes: an agent based model perspective.
-McGroarty, F., Booth, A., Gerding, E. et al. Ann Oper Res (2018). https://doi.org/10.1007/s10479-018-3019-4
 
 --------------------
 
