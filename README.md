@@ -1,6 +1,6 @@
 # APXR
 
-A platform for the testing and optimization of trading algorithms.
+A platform for the testing and optimisation of trading algorithms.
 
 --------------------
 ### Related publications
@@ -8,7 +8,7 @@ A platform for the testing and optimization of trading algorithms.
 High frequency trading strategies, market fragility and price spikes: an agent based model perspective.
 McGroarty, F., Booth, A., Gerding, E. et al. Ann Oper Res (2018). https://doi.org/10.1007/s10479-018-3019-4
 
-Note: This paper fails to provide several parameters, notably: the composition of the Agents, the wealth parameter W in the Momentum trader logic, the volume parameter v- in the MarketMaker trader logic and the number of standard deviations K in the MeanReversion trader logic. This obviously makes it difficult to reproduce the authors work. Several attempts were made to get in contact with the author of the source code, Dr. Ash Booth, but despite being engaged online he has thus far failed to respond.
+Note: This paper fails to provide several parameters, namely: the composition of the Agents, the wealth parameter W in the Momentum trader logic, the volume parameter V minus in the MarketMaker trader logic and the number of standard deviations K in the MeanReversion trader logic.
 
 --------------------
 ### Table of Contents
@@ -21,7 +21,7 @@ Note: This paper fails to provide several parameters, notably: the composition o
 * [Configuration](#configuration)
 * [Outputs](#outputs)
 * [Validation](#validation)
-* [Development](#development)
+* [Future work](#future-work)
 * [Debugging](#debugging)
 
 --------------------
@@ -51,28 +51,28 @@ Windows: https://github.com/elixir-lang/elixir/wiki/Windows
 --------------------
 ### Introduction
 
-An agent-based simulation environment that is realistic and robust enough for the analysis of algorithmic trading strategies. It is centered around a fully functioning limit order book (LOB) and populations of agents that represent common market behaviors and strategies. The agents operate on different timescales and their strategic behaviors depend on other market participants.
+An agent-based simulation environment with the goal of being realistic and robust enough for the analysis of algorithmic trading strategies. It is centred around a fully functioning limit order book (LOB) and populations of agents that represent common market behaviours and strategies. The agents operate on different timescales and their strategic behaviour depends on other market participants.
 
-ABMs can be thought of as models in which a number of heterogeneous agents interact with each other and their environment in a particular way. One of the key advantages of ABMs, compared to the other modeling methods, is their ability to model the heterogeneity of agents. Moreover, ABMs can provide insight into not just the behavior of individual agents but also the aggregate effects that emerge from the interactions of all agents. This type of modeling lends itself perfectly to capturing the complex phenomena often found in financial systems.
+ABMs can be thought of as models in which a number of heterogeneous agents interact with each other and their environment in a particular way. One of the key advantages of ABMs, compared to the other modelling methods, is their ability to model the heterogeneity of agents. Moreover, ABMs can provide insight into not just the behaviour of individual agents but also the aggregate effects that emerge from the interactions of all agents. This type of modelling lends itself perfectly to capturing the complex phenomena often found in financial systems.
 
 The main objective of the program is to identify the emerging patterns due to the complex interactions within the market. We consider five categories of traders (simplest explanation of the market ecology) which enables us to credibly mimic (including extreme price changes) price patterns in the market. The model is stated in pseudo-continuous time. That is, a simulated day is divided into T = 300,000 periods (approximately the number of 10ths of a second in an 8.5 h trading day) and during each period there is a possibility for each agent to act. Lower action probabilities correspond to slower trading speeds.
 
-The model comprises of 5 agent types: Market makers, liquidity consumers, mean reversion traders, momentum traders and noise traders. Importantly, when chosen, agents are not required to act. This facet allows agents to vary their activity through time and in response the market, as with real-world market participants.
+The model comprises of 5 agent types: Market Makers, Liquidity Consumers, Mean Reversion Traders, Momentum Traders and Noise Traders. Importantly, when chosen, agents are not required to act. This facet allows agents to vary their activity through time and in response the market, as with real-world market participants.
 
 Upon being chosen to act, if an agent wishes to submit an order, it will communicate an order type, volume and price determined by that agent’s internal logic. The order is then submitted to the LOB where it is matched using price-time priority. If no match occurs then the order is stored in the book until it is later filled or canceled by the originating trader.
 
 --------------------
 ### Architecture
 
-The platform favors correctness, developer agility, and stability. Throughput, latency, and execution speed are not overlooked, but viewed as secondary. The idea is to build a system that is simple/correct and then optimize for performance.
+The platform favours correctness, developer agility, and stability. Throughput, latency, and execution speed are not overlooked, but viewed as secondary. The idea is to build a system that is simple/correct and then optimise for performance.
 
 The system is composed of the following Elixir GenServer processes:
 - Market: A coordinating process that summons the traders to act on each iteration.
-- Exchange: A fully functioning limit order book and matching engine. Provides Level 1 and Level 2 market data on demand. Notifies traders when their trades have executed.
-- Traders: Various different Trader types that form the market ecology.
+- Exchange: A fully functioning limit order book and matching engine. Provides Level 1 and Level 2 market data. Notifies traders when their trades have executed.
+- Traders: Various Trader types that make up the market ecology.
 - Reporting service: A service that dispatches public market data to interested parties and writes the varies output series to file.
 
-Separating the runtime for each of these processes provides us with isolation guarantees that allow us to grow functionality irrespective to dependencies one component may have on another, not to mention the extremely desired behavior that system failures will not bring down non-dependent parts of the application. Basically, a trader process failing shouldn't bring down the Exchange. We can think of our system as a collection of small, independent threads of logic that communicate with other processes through an agreed upon interface.
+Separating the runtime for each of these processes provides us with isolation guarantees that allow us to grow functionality irrespective of dependencies one component may have on another, not to mention the desired behaviour that system failures will not bring down non-dependent parts of the application. Basically, a Trader process failing shouldn't bring down the Exchange. We can think of our system as a collection of small, independent threads of logic that communicate with other processes through an agreed upon interface.
 
 ![img](https://github.com/Rober-t/apxr/blob/master/img.png)
 
@@ -112,7 +112,7 @@ The program outputs four CSV files:
 --------------------
 ### Validation
 
-The data can be validated with the attached Juypter notebook `validate.ipynb`. It requires Python 3 to be installed. The notebook is configured to import the data from the above files. The model is validated against a number of stylized market properties including: clustered volatility, autocorrelation of returns, long memory in order flow, price impact and the presence of extreme price events.
+The data can be validated with the attached Juypter notebook `validate.ipynb`. It requires Python 3 to be installed. The notebook is configured to import the data from the above files. The model is validated against a number of stylised market properties including: clustered volatility, autocorrelation of returns, long memory in order flow, price impact and the presence of extreme price events.
 
 Run
 
@@ -123,9 +123,9 @@ jupyter notebook
 Navigate to 'http://localhost:8888/notebooks/validate.ipynb'
 
 --------------------
-### Development
+### Future work
 
-The program is designed for extension. For example, additional tickers, venues, circuit breakers, etc., can all be added. To implement your own trader see the `MyTrader` module. This can be modified to implement your trading strategy. Multiple different strategies can be added. If you would prefer to work in Python that too can easily be implemented. What you build on top is up to you and your needs.
+The program is designed for extension. For example, additional tickers, venues, circuit breakers, etc., can all be added. To implement your own trader see the `MyTrader` module. This can be modified to implement your trading strategy. Multiple different strategies can be added. If you would prefer to work in Python that too can easily be implemented. What you build on top is up to you!
 
 --------------------
 ### Debugging
